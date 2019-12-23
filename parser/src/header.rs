@@ -11,8 +11,8 @@ use crate::error::*;
 /// the data as Rust strings.
 #[derive(Debug)]
 pub struct MailHeader<'a> {
-    key: &'a [u8],
-    value: &'a [u8],
+    pub(crate) key: &'a [u8],
+    pub(crate) value: &'a [u8],
 }
 
 impl<'a> MailHeader<'a> {
