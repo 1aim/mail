@@ -1,14 +1,13 @@
 use std::vec;
 
-use ::HeaderName;
-use ::header::HeaderObj;
+use header::HeaderObj;
+use HeaderName;
 
 use super::HeaderMap;
 
 pub type IntoIter = vec::IntoIter<(HeaderName, Box<HeaderObj>)>;
 
 impl IntoIterator for HeaderMap {
-
     type Item = (HeaderName, Box<HeaderObj>);
     type IntoIter = IntoIter;
 

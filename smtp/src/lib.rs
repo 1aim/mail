@@ -59,11 +59,11 @@
 //!
 //!
 extern crate futures;
-extern crate new_tokio_smtp;
 extern crate mail_core as mail;
-extern crate mail_internals;
 #[cfg_attr(test, macro_use)]
 extern crate mail_headers as headers;
+extern crate mail_internals;
+extern crate new_tokio_smtp;
 #[macro_use]
 extern crate failure;
 
@@ -73,15 +73,15 @@ pub mod error;
 mod request;
 mod send_mail;
 
-pub use self::request::MailRequest;
-#[cfg(feature="extended-api")]
+#[cfg(feature = "extended-api")]
 pub use self::request::derive_envelop_data_from_mail;
+pub use self::request::MailRequest;
 
-pub use self::send_mail::{send, send_batch};
-#[cfg(feature="extended-api")]
+#[cfg(feature = "extended-api")]
 pub use self::send_mail::encode;
+pub use self::send_mail::{send, send_batch};
 
-pub use new_tokio_smtp::{ConnectionConfig, ConnectionBuilder};
+pub use new_tokio_smtp::{ConnectionBuilder, ConnectionConfig};
 
 pub mod auth {
     //! Module containing authentification commands/methods.
@@ -99,12 +99,5 @@ pub mod auth {
 
 pub mod misc {
     //! A small collection of usefull types re-exported from `new-tokio-smtp`.
-    pub use new_tokio_smtp::{
-        ClientId,
-        Domain,
-        AddressLiteral,
-        SetupTls,
-        DefaultTlsSetup,
-        Cmd
-    };
+    pub use new_tokio_smtp::{AddressLiteral, ClientId, Cmd, DefaultTlsSetup, Domain, SetupTls};
 }

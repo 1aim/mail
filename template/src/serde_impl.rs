@@ -1,28 +1,21 @@
 use std::{
     collections::HashMap,
+    mem,
     path::{Path, PathBuf},
-    mem
 };
 
-use serde::{
-    Serialize, Deserialize,
-    Serializer, Deserializer
-};
 use failure::Error;
-use futures::{Future, future::{self, Either}};
+use futures::{
+    future::{self, Either},
+    Future,
+};
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use vec1::Vec1;
 
-use mail_core::{Resource, Source, IRI, Context};
+use mail_core::{Context, Resource, Source, IRI};
 use mail_headers::header_components::MediaType;
 
-use super::{
-    Template,
-    TemplateEngine,
-    CwdBaseDir,
-    PathRebaseable,
-    Subject,
-    UnsupportedPathError,
-};
+use super::{CwdBaseDir, PathRebaseable, Subject, Template, TemplateEngine, UnsupportedPathError};
 
 /// Type used when deserializing a template using serde.
 ///
@@ -45,41 +38,48 @@ use super::{
 ///   content as the iris "tail".
 #[derive(Debug, Serialize, Deserialize)]
 pub struct TemplateBase<TE: TemplateEngine> {
-    #[serde(rename="name")]
+    #[serde(rename = "name")]
     template_name: String,
     #[serde(default)]
     base_dir: Option<CwdBaseDir>,
     subject: LazySubject,
     bodies: Vec1<TE::LazyBodyTemplate>,
     #[serde(default)]
-    #[serde(deserialize_with="deserialize_embeddings")]
+    #[serde(deserialize_with = "deserialize_embeddings")]
     embeddings: HashMap<String, Resource>,
     #[serde(default)]
-    #[serde(deserialize_with="deserialize_attachments")]
+    #[serde(deserialize_with = "deserialize_attachments")]
     attachments: Vec<Resource>,
 }
 
 impl<TE> TemplateBase<TE>
-    where TE: TemplateEngine
+where
+    TE: TemplateEngine,
 {
-
     //TODO!! make this load all embeddings/attachments and make it a future
     /// Couples the template base with a specific engine instance.``
-    pub fn load(self, mut engine: TE, default_base_dir: CwdBaseDir, ctx: &impl Context) -> impl Future<Item=Template<TE>, Error=Error> {
+    pub fn load(
+        self,
+        mut engine: TE,
+        default_base_dir: CwdBaseDir,
+        ctx: &impl Context,
+    ) -> impl Future<Item = Template<TE>, Error = Error> {
         let TemplateBase {
             template_name,
             base_dir,
             subject,
             bodies,
             mut embeddings,
-            mut attachments
+            mut attachments,
         } = self;
 
         let base_dir = base_dir.unwrap_or(default_base_dir);
 
         //FIXME[rust/catch block] use catch block
         let catch_res = (|| -> Result<_, Error> {
-            let subject = Subject{ template_id: engine.load_subject_template(subject.template_string)? };
+            let subject = Subject {
+                template_id: engine.load_subject_template(subject.template_string)?,
+            };
 
             let bodies = bodies.try_mapped(|mut lazy_body| -> Result<_, Error> {
                 lazy_body.rebase_to_include_base_dir(&base_dir)?;
@@ -97,15 +97,17 @@ impl<TE> TemplateBase<TE>
             Ok((subject, bodies))
         })();
 
-        let (subject, mut bodies) =
-            match catch_res {
-                Ok(vals) => vals,
-                Err(err) => { return Either::B(future::err(err)); }
-            };
+        let (subject, mut bodies) = match catch_res {
+            Ok(vals) => vals,
+            Err(err) => {
+                return Either::B(future::err(err));
+            }
+        };
 
         let loading_embeddings = Resource::load_container(embeddings, ctx);
         let loading_attachments = Resource::load_container(attachments, ctx);
-        let loading_body_embeddings = bodies.iter_mut()
+        let loading_body_embeddings = bodies
+            .iter_mut()
             .map(|body| {
                 //Note: empty HashMap does not alloc!
                 let body_embeddings = mem::replace(&mut body.inline_embeddings, HashMap::new());
@@ -113,7 +115,6 @@ impl<TE> TemplateBase<TE>
             })
             .collect::<Vec<_>>();
         let loading_body_embeddings = future::join_all(loading_body_embeddings);
-
 
         let fut = loading_embeddings
             .join3(loading_attachments, loading_body_embeddings)
@@ -129,7 +130,7 @@ impl<TE> TemplateBase<TE>
                     bodies,
                     embeddings,
                     attachments,
-                    engine
+                    engine,
                 }
             });
 
@@ -139,22 +140,22 @@ impl<TE> TemplateBase<TE>
 
 #[derive(Debug)]
 struct LazySubject {
-    template_string: String
+    template_string: String,
 }
 
 impl Serialize for LazySubject {
-
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-        where S: Serializer
+    where
+        S: Serializer,
     {
         serializer.serialize_str(&self.template_string)
     }
 }
 
 impl<'de> Deserialize<'de> for LazySubject {
-
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-        where D: Deserializer<'de>
+    where
+        D: Deserializer<'de>,
     {
         let template_string = String::deserialize(deserializer)?;
         Ok(LazySubject { template_string })
@@ -170,7 +171,7 @@ enum ResourceDeserializationHelper {
     // 3. as String which is interpreted as path iri
     Normal(Resource),
     FromSource(Source),
-    FromString(String)
+    FromString(String),
 }
 
 impl Into<Resource> for ResourceDeserializationHelper {
@@ -184,42 +185,41 @@ impl Into<Resource> for ResourceDeserializationHelper {
                     // but its static "path" which is known to be valid
                     iri: IRI::from_parts("path", &string).unwrap(),
                     use_media_type: Default::default(),
-                    use_file_name: Default::default()
+                    use_file_name: Default::default(),
                 };
 
                 Resource::Source(source)
-            },
-            FromSource(source) => Resource::Source(source)
+            }
+            FromSource(source) => Resource::Source(source),
         }
     }
 }
 
-pub fn deserialize_embeddings<'de, D>(deserializer: D)
-    -> Result<HashMap<String, Resource>, D::Error>
-    where D: Deserializer<'de>
+pub fn deserialize_embeddings<'de, D>(
+    deserializer: D,
+) -> Result<HashMap<String, Resource>, D::Error>
+where
+    D: Deserializer<'de>,
 {
     //FIXME[perf] write custom visitor etc.
-    let map = <HashMap<String, ResourceDeserializationHelper>>
-        ::deserialize(deserializer)?;
+    let map = <HashMap<String, ResourceDeserializationHelper>>::deserialize(deserializer)?;
 
-    let map = map.into_iter()
+    let map = map
+        .into_iter()
         .map(|(k, helper)| (k, helper.into()))
         .collect();
 
     Ok(map)
 }
 
-pub fn deserialize_attachments<'de, D>(deserializer: D)
-    -> Result<Vec<Resource>, D::Error>
-    where D: Deserializer<'de>
+pub fn deserialize_attachments<'de, D>(deserializer: D) -> Result<Vec<Resource>, D::Error>
+where
+    D: Deserializer<'de>,
 {
     //FIXME[perf] write custom visitor etc.
-    let vec = <Vec<ResourceDeserializationHelper>>
-        ::deserialize(deserializer)?;
+    let vec = <Vec<ResourceDeserializationHelper>>::deserialize(deserializer)?;
 
-    let vec = vec.into_iter()
-        .map(|helper| helper.into())
-        .collect();
+    let vec = vec.into_iter().map(|helper| helper.into()).collect();
 
     Ok(vec)
 }
@@ -236,14 +236,14 @@ pub fn deserialize_attachments<'de, D>(deserializer: D)
 pub struct StandardLazyBodyTemplate {
     pub path: PathBuf,
     pub embeddings: HashMap<String, Resource>,
-    pub media_type: Option<MediaType>
+    pub media_type: Option<MediaType>,
 }
 
-
 impl PathRebaseable for StandardLazyBodyTemplate {
-    fn rebase_to_include_base_dir(&mut self, base_dir: impl AsRef<Path>)
-        -> Result<(), UnsupportedPathError>
-    {
+    fn rebase_to_include_base_dir(
+        &mut self,
+        base_dir: impl AsRef<Path>,
+    ) -> Result<(), UnsupportedPathError> {
         let base_dir = base_dir.as_ref();
         self.path.rebase_to_include_base_dir(base_dir)?;
         for embedding in self.embeddings.values_mut() {
@@ -252,9 +252,10 @@ impl PathRebaseable for StandardLazyBodyTemplate {
         Ok(())
     }
 
-    fn rebase_to_exclude_base_dir(&mut self, base_dir: impl AsRef<Path>)
-        -> Result<(), UnsupportedPathError>
-    {
+    fn rebase_to_exclude_base_dir(
+        &mut self,
+        base_dir: impl AsRef<Path>,
+    ) -> Result<(), UnsupportedPathError> {
         let base_dir = base_dir.as_ref();
         self.path.rebase_to_exclude_base_dir(base_dir)?;
         for embedding in self.embeddings.values_mut() {
@@ -264,7 +265,6 @@ impl PathRebaseable for StandardLazyBodyTemplate {
     }
 }
 
-
 #[derive(Deserialize)]
 #[serde(untagged)]
 enum StandardLazyBodyTemplateDeserializationHelper {
@@ -272,59 +272,65 @@ enum StandardLazyBodyTemplateDeserializationHelper {
     LongForm {
         path: PathBuf,
         #[serde(default)]
-        #[serde(deserialize_with="deserialize_embeddings")]
+        #[serde(deserialize_with = "deserialize_embeddings")]
         embeddings: HashMap<String, Resource>,
         #[serde(default)]
-        media_type: Option<MediaType>
-    }
+        media_type: Option<MediaType>,
+    },
 }
 
 impl<'de> Deserialize<'de> for StandardLazyBodyTemplate {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-        where D: Deserializer<'de>
+    where
+        D: Deserializer<'de>,
     {
         use self::StandardLazyBodyTemplateDeserializationHelper::*;
         let helper = StandardLazyBodyTemplateDeserializationHelper::deserialize(deserializer)?;
-        let ok_val =
-            match helper {
-                ShortForm(string) => {
-                    StandardLazyBodyTemplate {
-                        path: string.into(),
-                        embeddings: Default::default(),
-                        media_type: Default::default()
-                    }
-                },
-                LongForm {path, embeddings, media_type} =>
-                    StandardLazyBodyTemplate { path, embeddings, media_type }
-            };
+        let ok_val = match helper {
+            ShortForm(string) => StandardLazyBodyTemplate {
+                path: string.into(),
+                embeddings: Default::default(),
+                media_type: Default::default(),
+            },
+            LongForm {
+                path,
+                embeddings,
+                media_type,
+            } => StandardLazyBodyTemplate {
+                path,
+                embeddings,
+                media_type,
+            },
+        };
         Ok(ok_val)
     }
 }
 
-
 #[cfg(test)]
 mod test {
-    use toml;
     use super::*;
+    use toml;
 
     fn test_source_iri(resource: &Resource, iri: &str) {
         if let &Resource::Source(ref source) = resource {
             assert_eq!(source.iri.as_str(), iri);
         } else {
-            panic!("unexpected resource expected resource with source and iri {:?} but got {:?}", iri, resource);
+            panic!(
+                "unexpected resource expected resource with source and iri {:?} but got {:?}",
+                iri, resource
+            );
         }
     }
 
     mod attachment_deserialization {
-        use super::*;
         use super::super::deserialize_attachments;
+        use super::*;
 
         #[derive(Serialize, Deserialize)]
         struct Wrapper {
-            #[serde(deserialize_with="deserialize_attachments")]
-            attachments: Vec<Resource>
+            #[serde(deserialize_with = "deserialize_attachments")]
+            attachments: Vec<Resource>,
         }
-
 
         #[test]
         fn should_deserialize_from_strings() {
@@ -388,13 +394,13 @@ mod test {
     }
 
     mod embedding_deserialization {
-        use super::*;
         use super::super::deserialize_embeddings;
+        use super::*;
 
         #[derive(Serialize, Deserialize)]
         struct Wrapper {
-            #[serde(deserialize_with="deserialize_embeddings")]
-            embeddings: HashMap<String, Resource>
+            #[serde(deserialize_with = "deserialize_embeddings")]
+            embeddings: HashMap<String, Resource>,
         }
 
         #[test]
@@ -421,18 +427,21 @@ mod test {
             test_source_iri(&embeddings["pic"], "path:hy-ya");
             test_source_iri(&embeddings["pic2"], "path:ay-ya");
             test_source_iri(&embeddings["pic4"], "path:nay-nay-way");
-            assert_eq!(embeddings["pic3"].content_id().unwrap().as_str(), "c0rc3rcr0q0v32@example.example");
+            assert_eq!(
+                embeddings["pic3"].content_id().unwrap().as_str(),
+                "c0rc3rcr0q0v32@example.example"
+            );
         }
     }
 
     #[allow(non_snake_case)]
     mod StandardLazyBodyTemplate {
-        use super::*;
         use super::super::StandardLazyBodyTemplate;
+        use super::*;
 
         #[derive(Serialize, Deserialize)]
         struct Wrapper {
-            body: StandardLazyBodyTemplate
+            body: StandardLazyBodyTemplate,
         }
 
         #[test]
@@ -452,7 +461,7 @@ mod test {
                 body = { path="t.d" }
             "#;
 
-            let Wrapper { body }= toml::from_str(toml_str).unwrap();
+            let Wrapper { body } = toml::from_str(toml_str).unwrap();
             assert_eq!(body.path.to_str().unwrap(), "t.d");
             assert_eq!(body.embeddings.len(), 0);
         }

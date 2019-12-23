@@ -1,10 +1,10 @@
 use std::any::{Any, TypeId};
 use std::fmt::{self, Debug};
-use std::result::{ Result as StdResult };
+use std::result::Result as StdResult;
 use std::sync::Arc;
 
-use ::error::EncodingError;
-use super::{EncodingWriter};
+use super::EncodingWriter;
+use error::EncodingError;
 
 // can not be moved to `super::traits` as it depends on the
 // EncodingWriter defined here
@@ -13,7 +13,7 @@ use super::{EncodingWriter};
 /// This trait can be turned into a trait object allowing runtime
 /// genericallity over the "components" if needed.
 pub trait EncodableInHeader: Send + Sync + Any + Debug {
-    fn encode(&self, encoder:  &mut EncodingWriter) -> Result<(), EncodingError>;
+    fn encode(&self, encoder: &mut EncodingWriter) -> Result<(), EncodingError>;
 
     fn boxed_clone(&self) -> Box<EncodableInHeader>;
 
@@ -25,17 +25,15 @@ pub trait EncodableInHeader: Send + Sync + Any + Debug {
 
 //TODO we now could use MOPA or similar crates
 impl EncodableInHeader {
-
     #[inline(always)]
     pub fn is<T: EncodableInHeader>(&self) -> bool {
         EncodableInHeader::type_id(self) == TypeId::of::<T>()
     }
 
-
     #[inline]
     pub fn downcast_ref<T: EncodableInHeader>(&self) -> Option<&T> {
         if self.is::<T>() {
-            Some( unsafe { &*( self as *const EncodableInHeader as *const T) } )
+            Some(unsafe { &*(self as *const EncodableInHeader as *const T) })
         } else {
             None
         }
@@ -44,7 +42,7 @@ impl EncodableInHeader {
     #[inline]
     pub fn downcast_mut<T: EncodableInHeader>(&mut self) -> Option<&mut T> {
         if self.is::<T>() {
-            Some( unsafe { &mut *( self as *mut EncodableInHeader as *mut T) } )
+            Some(unsafe { &mut *(self as *mut EncodableInHeader as *mut T) })
         } else {
             None
         }
@@ -52,37 +50,33 @@ impl EncodableInHeader {
 }
 
 impl Clone for Box<EncodableInHeader> {
-
     fn clone(&self) -> Self {
         self.boxed_clone()
     }
 }
-
 
 pub trait EncodableInHeaderBoxExt: Sized {
     fn downcast<T: EncodableInHeader>(self) -> StdResult<Box<T>, Self>;
 }
 
 impl EncodableInHeaderBoxExt for Box<EncodableInHeader> {
-
     fn downcast<T: EncodableInHeader>(self) -> StdResult<Box<T>, Self> {
         if EncodableInHeader::is::<T>(&*self) {
             let ptr: *mut EncodableInHeader = Box::into_raw(self);
-            Ok( unsafe { Box::from_raw(ptr as *mut T) } )
+            Ok(unsafe { Box::from_raw(ptr as *mut T) })
         } else {
-            Err( self )
+            Err(self)
         }
     }
 }
 
-impl EncodableInHeaderBoxExt for Box<EncodableInHeader+Send> {
-
+impl EncodableInHeaderBoxExt for Box<EncodableInHeader + Send> {
     fn downcast<T: EncodableInHeader>(self) -> StdResult<Box<T>, Self> {
         if EncodableInHeader::is::<T>(&*self) {
             let ptr: *mut EncodableInHeader = Box::into_raw(self);
-            Ok( unsafe { Box::from_raw(ptr as *mut T) } )
+            Ok(unsafe { Box::from_raw(ptr as *mut T) })
         } else {
-            Err( self )
+            Err(self)
         }
     }
 }
@@ -92,14 +86,14 @@ impl EncodableInHeaderBoxExt for Box<EncodableInHeader+Send> {
 /// (Mainly used in the inside of tests.)
 #[macro_export]
 macro_rules! enc_func {
-    (|$enc:ident : &mut EncodingWriter| $block:block) => ({
+    (|$enc:ident : &mut EncodingWriter| $block:block) => {{
         use $crate::error::EncodingError;
         fn _anonym($enc: &mut EncodingWriter) -> Result<(), EncodingError> {
             $block
         }
         let fn_pointer = _anonym as fn(&mut EncodingWriter) -> Result<(), EncodingError>;
         $crate::encoder::EncodeFn::new(fn_pointer)
-    });
+    }};
 }
 
 type _EncodeFn = for<'a, 'b> fn(&'a mut EncodingWriter<'b>) -> Result<(), EncodingError>;
@@ -115,7 +109,7 @@ impl EncodeFn {
 }
 
 impl EncodableInHeader for EncodeFn {
-    fn encode(&self, encoder:  &mut EncodingWriter) -> Result<(), EncodingError> {
+    fn encode(&self, encoder: &mut EncodingWriter) -> Result<(), EncodingError> {
         (self.0)(encoder)
     }
 
@@ -142,12 +136,12 @@ macro_rules! enc_closure {
 
 /// A wrapper for an closure making it implement `EncodableInHeader`.
 pub struct EncodeClosure<FN: 'static>(Arc<FN>)
-    where FN: Send + Sync +
-        for<'a, 'b> Fn(&'a mut EncodingWriter<'b>) -> Result<(), EncodingError>;
+where
+    FN: Send + Sync + for<'a, 'b> Fn(&'a mut EncodingWriter<'b>) -> Result<(), EncodingError>;
 
 impl<FN: 'static> EncodeClosure<FN>
-    where FN: Send + Sync +
-        for<'a, 'b> Fn(&'a mut EncodingWriter<'b>) -> Result<(), EncodingError>
+where
+    FN: Send + Sync + for<'a, 'b> Fn(&'a mut EncodingWriter<'b>) -> Result<(), EncodingError>,
 {
     pub fn new(closure: FN) -> Self {
         EncodeClosure(Arc::new(closure))
@@ -155,10 +149,10 @@ impl<FN: 'static> EncodeClosure<FN>
 }
 
 impl<FN: 'static> EncodableInHeader for EncodeClosure<FN>
-    where FN: Send + Sync +
-        for<'a, 'b> Fn(&'a mut EncodingWriter<'b>) -> Result<(), EncodingError>
+where
+    FN: Send + Sync + for<'a, 'b> Fn(&'a mut EncodingWriter<'b>) -> Result<(), EncodingError>,
 {
-    fn encode(&self, encoder:  &mut EncodingWriter) -> Result<(), EncodingError> {
+    fn encode(&self, encoder: &mut EncodingWriter) -> Result<(), EncodingError> {
         (self.0)(encoder)
     }
 
@@ -168,18 +162,17 @@ impl<FN: 'static> EncodableInHeader for EncodeClosure<FN>
 }
 
 impl<FN: 'static> Clone for EncodeClosure<FN>
-    where FN: Send + Sync +
-        for<'a, 'b> Fn(&'a mut EncodingWriter<'b>) -> Result<(), EncodingError>
+where
+    FN: Send + Sync + for<'a, 'b> Fn(&'a mut EncodingWriter<'b>) -> Result<(), EncodingError>,
 {
     fn clone(&self) -> Self {
         EncodeClosure(self.0.clone())
     }
 }
 
-
 impl<FN: 'static> Debug for EncodeClosure<FN>
-    where FN: Send + Sync +
-        for<'a, 'b> Fn(&'a mut EncodingWriter<'b>) -> Result<(), EncodingError>
+where
+    FN: Send + Sync + for<'a, 'b> Fn(&'a mut EncodingWriter<'b>) -> Result<(), EncodingError>,
 {
     fn fmt(&self, fter: &mut fmt::Formatter) -> fmt::Result {
         write!(fter, "EncodeClosure(..)")

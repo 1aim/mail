@@ -28,14 +28,14 @@
 //!
 use std::io;
 
-use soft_ascii_string::SoftAsciiString;
 use futures_cpupool::{Builder, CpuPool};
+use soft_ascii_string::SoftAsciiString;
 
-use internals::error::EncodingError;
 use headers::header_components::Domain;
+use internals::error::EncodingError;
 
-use ::context::CompositeContext;
-use ::default_impl::{FsResourceLoader, HashedIdGen};
+use context::CompositeContext;
+use default_impl::{FsResourceLoader, HashedIdGen};
 
 /// Error returned when creating a "simple_context" fails.
 #[derive(Debug, Fail)]
@@ -43,12 +43,12 @@ pub enum ContextSetupError {
     /// Reading the env variables failed.
     ///
     /// (Mainly getting the current working dir failed).
-    #[fail(display="{}", _0)]
+    #[fail(display = "{}", _0)]
     ReadingEnv(io::Error),
 
     /// Punny encoding a non us-ascii domain failed.
-    #[fail(display="{}", _0)]
-    PunyCodingDomain(EncodingError)
+    #[fail(display = "{}", _0)]
+    PunyCodingDomain(EncodingError),
 }
 
 /// Type Alias for a the type returned by `simple_context::new`.
@@ -67,19 +67,13 @@ pub type Context = CompositeContext<FsResourceLoader, CpuPool, HashedIdGen>;
 /// under any circumstances (expect if they use different domains, but then you
 /// also should only use domain you actually own).
 pub fn new(domain: Domain, unique_part: SoftAsciiString) -> Result<Context, ContextSetupError> {
-    let resource_loader = FsResourceLoader
-        ::with_cwd_root()
-        .map_err(|err| ContextSetupError::ReadingEnv(err))?;
+    let resource_loader =
+        FsResourceLoader::with_cwd_root().map_err(|err| ContextSetupError::ReadingEnv(err))?;
 
     let cpu_pool = Builder::new().create();
 
-    let id_gen = HashedIdGen
-        ::new(domain, unique_part)
+    let id_gen = HashedIdGen::new(domain, unique_part)
         .map_err(|err| ContextSetupError::PunyCodingDomain(err))?;
 
-    Ok(CompositeContext::new(
-        resource_loader,
-        cpu_pool,
-        id_gen,
-    ))
+    Ok(CompositeContext::new(resource_loader, cpu_pool, id_gen))
 }

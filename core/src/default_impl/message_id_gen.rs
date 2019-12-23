@@ -1,14 +1,13 @@
-use std::sync::atomic::{AtomicUsize, Ordering};
 use std::collections::hash_map::DefaultHasher;
 use std::hash::Hasher;
+use std::sync::atomic::{AtomicUsize, Ordering};
 
 use rand;
 use soft_ascii_string::SoftAsciiString;
 
+use context::MailIdGenComponent;
+use headers::header_components::{ContentId, Domain, MessageId};
 use internals::error::EncodingError;
-use headers::header_components::{MessageId, ContentId, Domain};
-use ::context::MailIdGenComponent;
-
 
 static MAIL_COUNTER: AtomicUsize = AtomicUsize::new(0);
 
@@ -32,12 +31,10 @@ fn gen_next_program_unique_number() -> u64 {
 #[derive(Debug, Clone)]
 pub struct HashedIdGen {
     domain: SoftAsciiString,
-    part_unique_in_domain: SoftAsciiString
+    part_unique_in_domain: SoftAsciiString,
 }
 
 impl HashedIdGen {
-
-
     /// create a new id gen from a `Domain` and a unique part.
     ///
     /// The domain is used as the right hand side of the message
@@ -75,31 +72,32 @@ impl HashedIdGen {
     ///
     /// The other problem is solved by hashing the counter with
     /// a random part.
-    pub fn new(domain: Domain, part_unique_in_domain: SoftAsciiString)
-        -> Result<Self, EncodingError>
-    {
+    pub fn new(
+        domain: Domain,
+        part_unique_in_domain: SoftAsciiString,
+    ) -> Result<Self, EncodingError> {
         let domain = domain.into_ascii_string()?;
         Ok(HashedIdGen {
             domain,
-            part_unique_in_domain
+            part_unique_in_domain,
         })
     }
 }
 
 impl MailIdGenComponent for HashedIdGen {
-
     fn generate_message_id(&self) -> MessageId {
-        let msg_id = format!("{unique}.{hash:x}@{domain}",
-            unique=self.part_unique_in_domain,
-            hash=gen_next_program_unique_number(),
-            domain=self.domain);
+        let msg_id = format!(
+            "{unique}.{hash:x}@{domain}",
+            unique = self.part_unique_in_domain,
+            hash = gen_next_program_unique_number(),
+            domain = self.domain
+        );
         MessageId::from_unchecked(msg_id)
     }
 
     fn generate_content_id(&self) -> ContentId {
-       self.generate_message_id().into()
+        self.generate_message_id().into()
     }
-
 }
 
 #[cfg(test)]
@@ -108,16 +106,16 @@ mod test {
     mod HashedIdGen {
         #![allow(non_snake_case)]
 
-        use std::sync::Arc;
-        use std::collections::HashSet;
-        use soft_ascii_string::SoftAsciiString;
         use headers::header_components::Domain;
         use headers::HeaderTryFrom;
+        use soft_ascii_string::SoftAsciiString;
+        use std::collections::HashSet;
+        use std::sync::Arc;
 
         //NOTE: this is a rust bug, the import is not unused
-        #[allow(unused_imports)]
-        use ::context::MailIdGenComponent;
         use super::super::HashedIdGen;
+        #[allow(unused_imports)]
+        use context::MailIdGenComponent;
 
         fn setup() -> Arc<HashedIdGen> {
             let unique_part = SoftAsciiString::from_unchecked("bfr7tz4");

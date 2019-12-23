@@ -12,17 +12,12 @@ use soft_ascii_string::SoftAsciiString;
 use std::str;
 
 use mail::{
-    HeaderTryFrom,
-    Mail, MailType,
+    default_impl::simple_context, error::MailError, Context, Domain, HeaderTryFrom, Mail, MailType,
     Resource,
-    Context, Domain,
-    error::MailError,
-    default_impl::simple_context,
 };
 
 // Mail uses \r\n newlines!!
-const MSG: &str =
-"Dear Tree Apes,\r
+const MSG: &str = "Dear Tree Apes,\r
 \r
 the next grate block buster is here 🎉\r
 \r
@@ -66,9 +61,11 @@ fn encode_mail_to_stdout(mail: Mail, ctx: impl Context) -> Result<(), MailError>
         .encode_into_bytes(MailType::Ascii)?;
 
     // Note how the 🙈 utf8 char will be automatically encoded (it would not be
-		// specially encoded if MailType would be Internationalized).
-    println!("{}", str::from_utf8(bytes.as_slice())
-        .expect("[BUG] MailType::Ascii can't have non utf8 bytes"));
+    // specially encoded if MailType would be Internationalized).
+    println!(
+        "{}",
+        str::from_utf8(bytes.as_slice()).expect("[BUG] MailType::Ascii can't have non utf8 bytes")
+    );
     Ok(())
 }
 

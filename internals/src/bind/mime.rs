@@ -1,11 +1,8 @@
 use std::borrow::Cow;
 
-use soft_ascii_string::{ SoftAsciiStr, SoftAsciiString};
 use grammar::is_token_char;
-use percent_encoding::{
-    EncodeSet,
-    percent_encode
-};
+use percent_encoding::{percent_encode, EncodeSet};
+use soft_ascii_string::{SoftAsciiStr, SoftAsciiString};
 
 #[derive(Debug, Eq, PartialEq, Clone, Copy, Hash)]
 struct MimeParamEncodingSet;
@@ -17,28 +14,28 @@ impl EncodeSet for MimeParamEncodingSet {
     }
 }
 
-
 /// percent encodes a byte sequence so that it can be used
 /// in a RFC 2231 conform encoded mime header parameter
 pub fn percent_encode_param_value<'a, R>(input: &'a R) -> Cow<'a, SoftAsciiStr>
-    where R: ?Sized+AsRef<[u8]>
+where
+    R: ?Sized + AsRef<[u8]>,
 {
     let cow: Cow<'a, str> = percent_encode(input.as_ref(), MimeParamEncodingSet).into();
     match cow {
         Cow::Owned(o) =>
-            //SAFE: MimeParamEncodingSet makes all non-us-ascii bytes encoded AND
-            // percent_encoding::percent_encode always only produces ascii anyway
-            Cow::Owned(SoftAsciiString::from_unchecked(o)),
-        Cow::Borrowed(b) =>
-            Cow::Borrowed(SoftAsciiStr::from_unchecked(b))
+        //SAFE: MimeParamEncodingSet makes all non-us-ascii bytes encoded AND
+        // percent_encoding::percent_encode always only produces ascii anyway
+        {
+            Cow::Owned(SoftAsciiString::from_unchecked(o))
+        }
+        Cow::Borrowed(b) => Cow::Borrowed(SoftAsciiStr::from_unchecked(b)),
     }
 }
 
-
 #[cfg(test)]
 mod test {
-    use std::borrow::Cow;
     use super::*;
+    use std::borrow::Cow;
 
     #[test]
     fn encode_simple() {

@@ -1,55 +1,28 @@
 //! Module containing all the parts for creating/encoding Mails.
 //!
 
+use std::{fmt, mem, ops::Deref};
 
-use std::{
-    ops::Deref,
-    fmt,
-    mem
-};
-
-use soft_ascii_string::SoftAsciiString;
-use futures::{
-    future,
-    Future,
-    Async,
-    Poll
-};
+use futures::{future, Async, Future, Poll};
 use media_type::BOUNDARY;
+use soft_ascii_string::SoftAsciiString;
 
-use internals::{
-    MailType,
-    encoder::EncodingBuffer
-};
 use headers::{
-    Header, HeaderKind,
-    HeaderMap,
+    error::HeaderValidationError,
+    header_components::{DateTime, MediaType},
     headers::{
-        ContentType, _From,
-        ContentTransferEncoding,
-        Date, MessageId,
-        ContentDisposition,
-        ContentId
+        ContentDisposition, ContentId, ContentTransferEncoding, ContentType, Date, MessageId, _From,
     },
-    header_components::{
-        DateTime,
-        MediaType
-    },
-    error::{
-        HeaderValidationError,
-    }
+    Header, HeaderKind, HeaderMap,
 };
+use internals::{encoder::EncodingBuffer, MailType};
 
-use ::{
-    utils::SendBoxFuture,
+use {
+    context::Context,
+    error::{MailError, OtherValidationError, ResourceLoadingError},
     mime::create_structured_random_boundary,
-    error::{
-        MailError,
-        OtherValidationError,
-        ResourceLoadingError
-    },
     resource::*,
-    context::Context
+    utils::SendBoxFuture,
 };
 
 /// A type representing a Mail.
@@ -186,7 +159,7 @@ pub struct Mail {
 #[derive(Clone, Debug)]
 pub enum MailBody {
     SingleBody {
-        body: Resource
+        body: Resource,
     },
     MultipleBodies {
         //TODO[now]: use Vec1
@@ -196,12 +169,11 @@ pub enum MailBody {
         /// there is a chance that we need to do so
         /// in the future as some mechanisms might
         /// misuse this, well unusual think.
-        hidden_text: SoftAsciiString
-    }
+        hidden_text: SoftAsciiString,
+    },
 }
 
 impl Mail {
-
     /// Create a new plain text mail.
     ///
     /// This will
@@ -235,8 +207,8 @@ impl Mail {
             headers,
             body: MailBody::MultipleBodies {
                 bodies,
-                hidden_text: SoftAsciiString::new()
-            }
+                hidden_text: SoftAsciiString::new(),
+            },
         }
     }
 
@@ -245,10 +217,9 @@ impl Mail {
         let headers = HeaderMap::new();
         Mail {
             headers,
-            body: MailBody::SingleBody { body }
+            body: MailBody::SingleBody { body },
         }
     }
-
 
     /// Inserts a new header into the header map.
     ///
@@ -256,7 +227,8 @@ impl Mail {
     /// which means all behavior of `HeaderMap::insert`
     /// does apply, like e.g. the "max one" behavior.
     pub fn insert_header<H>(&mut self, header: Header<H>)
-        where H: HeaderKind
+    where
+        H: HeaderKind,
     {
         self.headers_mut().insert(header);
     }
@@ -325,7 +297,7 @@ impl Mail {
             validate_singlepart_headermap(self.headers())?;
         }
         match self.body() {
-            &MailBody::SingleBody { .. } => {},
+            &MailBody::SingleBody { .. } => {}
             &MailBody::MultipleBodies { ref bodies, .. } => {
                 for body in bodies {
                     body.generally_validate_mail()?;
@@ -374,16 +346,17 @@ impl Mail {
     /// same Resource` (assuming the mail had not been modified in it's structure
     /// in between).
     fn visit_mail_bodies<FN>(&self, use_it_fn: &mut FN)
-        where FN: FnMut(&Resource)
+    where
+        FN: FnMut(&Resource),
     {
         use self::MailBody::*;
         match self.body {
-            SingleBody { ref  body } =>
-                use_it_fn(body),
-            MultipleBodies { ref  bodies, .. } =>
+            SingleBody { ref body } => use_it_fn(body),
+            MultipleBodies { ref bodies, .. } => {
                 for body in bodies {
                     body.visit_mail_bodies(use_it_fn)
                 }
+            }
         }
     }
 
@@ -392,58 +365,64 @@ impl Mail {
     /// See `visit_mail_bodies` for a listing of **visiting order guarantees** given
     /// by this function.
     fn visit_mail_bodies_mut<FN>(&mut self, use_it_fn: &mut FN)
-        where FN: FnMut(&mut Resource)
+    where
+        FN: FnMut(&mut Resource),
     {
         use self::MailBody::*;
         match self.body {
-            SingleBody { ref mut body } =>
-                use_it_fn(body),
-            MultipleBodies { ref mut bodies, .. } =>
+            SingleBody { ref mut body } => use_it_fn(body),
+            MultipleBodies { ref mut bodies, .. } => {
                 for body in bodies {
                     body.visit_mail_bodies_mut(use_it_fn)
                 }
+            }
         }
     }
 }
 
-
 impl MailBody {
-
     /// Returns `true` if it's an multipart body.
     pub fn is_multipart(&self) -> bool {
         use self::MailBody::*;
         match *self {
             SingleBody { .. } => false,
-            MultipleBodies { .. } => true
+            MultipleBodies { .. } => true,
         }
     }
 }
 
 /// A future resolving to an encodable mail.
 pub struct MailFuture<C: Context> {
-    inner: InnerMailFuture<C>
+    inner: InnerMailFuture<C>,
 }
 
 enum InnerMailFuture<C: Context> {
-    New { mail: Mail, ctx: C },
+    New {
+        mail: Mail,
+        ctx: C,
+    },
     Loading {
         mail: Mail,
         pending: future::JoinAll<Vec<SendBoxFuture<EncData, ResourceLoadingError>>>,
-        ctx: C
+        ctx: C,
     },
-    Poison
+    Poison,
 }
 
 impl<C> MailFuture<C>
-    where C: Context
+where
+    C: Context,
 {
     fn new(mail: Mail, ctx: C) -> Self {
-        MailFuture { inner: InnerMailFuture::New { mail, ctx } }
+        MailFuture {
+            inner: InnerMailFuture::New { mail, ctx },
+        }
     }
 }
 
 impl<T> Future for MailFuture<T>
-    where T: Context,
+where
+    T: Context,
 {
     type Item = EncodableMail;
     type Error = MailError;
@@ -466,28 +445,31 @@ impl<T> Future for MailFuture<T>
                     mem::replace(
                         &mut self.inner,
                         InnerMailFuture::Loading {
-                            mail, ctx,
-                            pending: future::join_all(futures)
-                        }
-                    );
-                },
-                Loading { mut mail, mut pending, ctx } => {
-                    match pending.poll() {
-                        Err(err) => return Err(err.into()),
-                        Ok(Async::NotReady) => {
-                            mem::replace(
-                                &mut self.inner,
-                                InnerMailFuture::Loading { mail, pending, ctx }
-                            );
-                            return Ok(Async::NotReady);
+                            mail,
+                            ctx,
+                            pending: future::join_all(futures),
                         },
-                        Ok(Async::Ready(encoded_bodies)) => {
-                            auto_gen_headers(&mut mail, encoded_bodies, &ctx);
-                            return Ok(Async::Ready(EncodableMail(mail)));
-                        }
+                    );
+                }
+                Loading {
+                    mut mail,
+                    mut pending,
+                    ctx,
+                } => match pending.poll() {
+                    Err(err) => return Err(err.into()),
+                    Ok(Async::NotReady) => {
+                        mem::replace(
+                            &mut self.inner,
+                            InnerMailFuture::Loading { mail, pending, ctx },
+                        );
+                        return Ok(Async::NotReady);
+                    }
+                    Ok(Async::Ready(encoded_bodies)) => {
+                        auto_gen_headers(&mut mail, encoded_bodies, &ctx);
+                        return Ok(Async::Ready(EncodableMail(mail)));
                     }
                 },
-                Poison => panic!("called again after completion (through value, error or panic)")
+                Poison => panic!("called again after completion (through value, error or panic)"),
             }
         }
     }
@@ -498,7 +480,6 @@ impl<T> Future for MailFuture<T>
 pub struct EncodableMail(Mail);
 
 impl EncodableMail {
-
     /// Encode the mail using the given encoding buffer.
     ///
     /// After encoding succeeded the buffer should contain
@@ -531,11 +512,7 @@ fn top_level_validation(mail: &Mail) -> Result<(), HeaderValidationError> {
 }
 
 /// insert auto-generated headers like `Date`, `Message-Id` and `Content-Id`
-fn auto_gen_headers<C: Context>(
-    mail: &mut Mail,
-    encoded_resources: Vec<EncData>,
-    ctx: &C
-) {
+fn auto_gen_headers<C: Context>(mail: &mut Mail, encoded_resources: Vec<EncData>, ctx: &C) {
     {
         let headers = mail.headers_mut();
         if !headers.contains(Date) {
@@ -549,7 +526,8 @@ fn auto_gen_headers<C: Context>(
 
     let mut iter = encoded_resources.into_iter();
     mail.visit_mail_bodies_mut(&mut move |resource: &mut Resource| {
-        let enc_data = iter.next()
+        let enc_data = iter
+            .next()
             .expect("[BUG] mail structure modified while turing it into encoded mail");
         mem::replace(resource, Resource::EncData(enc_data));
     });
@@ -569,7 +547,7 @@ fn auto_gen_headers<C: Context>(
 pub(crate) fn assume_encoded(resource: &Resource) -> &EncData {
     match resource {
         &Resource::EncData(ref ed) => ed,
-        _ => panic!("[BUG] auto gen/encode should only be called on all resources are loaded")
+        _ => panic!("[BUG] auto gen/encode should only be called on all resources are loaded"),
     }
 }
 
@@ -584,7 +562,10 @@ pub(crate) fn assume_encoded(resource: &Resource) -> &EncData {
 /// - create/overwrite the boundary for the `Content-Type` header
 /// - call this method for all bodies in the multipart body
 fn recursive_auto_gen_headers<C: Context>(mail: &mut Mail, boundary_count: &mut usize, ctx: &C) {
-    let &mut Mail { ref mut headers, ref mut body } = mail;
+    let &mut Mail {
+        ref mut headers,
+        ref mut body,
+    } = mail;
     match body {
         &mut MailBody::SingleBody { ref mut body } => {
             let data = assume_encoded(body);
@@ -595,7 +576,7 @@ fn recursive_auto_gen_headers<C: Context>(mail: &mut Mail, boundary_count: &mut 
             }
 
             headers.insert(ContentId::body(data.content_id().clone()));
-        },
+        }
         &mut MailBody::MultipleBodies { ref mut bodies, .. } => {
             let mut headers: &mut HeaderMap = headers;
             let content_type: &mut Header<ContentType> = headers
@@ -614,10 +595,7 @@ fn recursive_auto_gen_headers<C: Context>(mail: &mut Mail, boundary_count: &mut 
     }
 }
 
-pub(crate) fn validate_multipart_headermap(headers: &HeaderMap)
-    -> Result<(), MailError>
-{
-
+pub(crate) fn validate_multipart_headermap(headers: &HeaderMap) -> Result<(), MailError> {
     if headers.contains(ContentTransferEncoding) {
         return Err(OtherValidationError::ContentTransferEncodingHeaderGiven.into());
     }
@@ -633,10 +611,9 @@ pub(crate) fn validate_multipart_headermap(headers: &HeaderMap)
     Ok(())
 }
 
-
-pub(crate) fn validate_singlepart_headermap(headers: &HeaderMap)
-    -> Result<(), HeaderValidationError>
-{
+pub(crate) fn validate_singlepart_headermap(
+    headers: &HeaderMap,
+) -> Result<(), HeaderValidationError> {
     if headers.contains(ContentTransferEncoding) {
         return Err(OtherValidationError::ContentTransferEncodingHeaderGiven.into());
     }
@@ -648,9 +625,8 @@ pub(crate) fn validate_singlepart_headermap(headers: &HeaderMap)
 }
 
 impl Deref for EncodableMail {
-
     type Target = Mail;
-    fn deref( &self ) -> &Self::Target {
+    fn deref(&self) -> &Self::Target {
         &self.0
     }
 }
@@ -662,13 +638,11 @@ impl Into<Mail> for EncodableMail {
     }
 }
 
-
 impl fmt::Debug for EncodableMail {
     fn fmt(&self, fter: &mut fmt::Formatter) -> fmt::Result {
         write!(fter, "EncodableMail {{ .. }}")
     }
 }
-
 
 #[cfg(test)]
 mod test {
@@ -680,20 +654,14 @@ mod test {
 
     mod Mail {
         #![allow(non_snake_case)]
-        use headers::{
-            headers::{
-                Subject,
-                Comments
-            }
-        };
-        use default_impl::test_context;
         use super::super::*;
         use super::{AssertDebug, AssertSend, AssertSync};
+        use default_impl::test_context;
+        use headers::headers::{Comments, Subject};
 
         impl AssertDebug for Mail {}
         impl AssertSend for Mail {}
         impl AssertSync for Mail {}
-
 
         #[test]
         fn visit_mail_bodies_does_not_skip() {
@@ -701,44 +669,43 @@ mod test {
             let mail = Mail {
                 headers: HeaderMap::new(),
                 body: MailBody::MultipleBodies {
-                    bodies: vec! [
+                    bodies: vec![
                         Mail {
                             headers: HeaderMap::new(),
                             body: MailBody::MultipleBodies {
-                                bodies: vec! [
+                                bodies: vec![
                                     Mail {
                                         headers: HeaderMap::new(),
                                         body: MailBody::SingleBody {
-                                            body: Resource::plain_text("r1", &ctx)
-                                        }
+                                            body: Resource::plain_text("r1", &ctx),
+                                        },
                                     },
                                     Mail {
                                         headers: HeaderMap::new(),
                                         body: MailBody::SingleBody {
-                                            body: Resource::plain_text("r2", &ctx)
-                                        }
-                                    }
+                                            body: Resource::plain_text("r2", &ctx),
+                                        },
+                                    },
                                 ],
-                                hidden_text: Default::default()
-                            }
+                                hidden_text: Default::default(),
+                            },
                         },
                         Mail {
                             headers: HeaderMap::new(),
                             body: MailBody::SingleBody {
-                                body: Resource::plain_text("r3", &ctx)
-                            }
-                        }
-
+                                body: Resource::plain_text("r3", &ctx),
+                            },
+                        },
                     ],
-                    hidden_text: Default::default()
-                }
+                    hidden_text: Default::default(),
+                },
             };
 
             let mut body_count = 0;
             mail.visit_mail_bodies(&mut |body: &Resource| {
                 if let &Resource::Data(ref body) = body {
                     assert_eq!(
-                        [ "r1", "r2", "r3"][body_count].as_bytes(),
+                        ["r1", "r2", "r3"][body_count].as_bytes(),
                         body.buffer().as_ref()
                     )
                 } else {
@@ -757,8 +724,6 @@ mod test {
             assert!(mail.headers().contains(Subject));
         });
 
-
-
         test!(insert_headers_sets_all_headers, {
             let ctx = test_context();
             let mut mail = Mail::plain_text("r0", &ctx);
@@ -770,21 +735,15 @@ mod test {
             assert!(mail.headers().contains(Subject));
             assert!(mail.headers().contains(Comments));
         });
-
     }
 
     mod EncodableMail {
         #![allow(non_snake_case)]
-        use chrono::{Utc, TimeZone};
-        use headers::{
-            headers::{
-                _From, ContentType, ContentTransferEncoding,
-                Date, Subject
-            }
-        };
-        use default_impl::test_context;
         use super::super::*;
         use super::{AssertDebug, AssertSend, AssertSync};
+        use chrono::{TimeZone, Utc};
+        use default_impl::test_context;
+        use headers::headers::{ContentTransferEncoding, ContentType, Date, Subject, _From};
 
         impl AssertDebug for EncodableMail {}
         impl AssertSend for EncodableMail {}
@@ -795,11 +754,12 @@ mod test {
             let ctx = test_context();
             let resource = Resource::plain_text("r9", &ctx);
             let mail = Mail {
-                headers: headers!{
+                headers: headers! {
                     _From: ["random@this.is.no.mail"],
                     Subject: "hoho"
-                }.unwrap(),
-                body: MailBody::SingleBody { body: resource }
+                }
+                .unwrap(),
+                body: MailBody::SingleBody { body: resource },
             };
 
             let enc_mail = assert_ok!(mail.into_encodable_mail(ctx).wait());
@@ -821,20 +781,19 @@ mod test {
             let ctx = test_context();
             let resource = Resource::plain_text("r9", &ctx);
             let mail = Mail {
-                headers: headers!{
+                headers: headers! {
                     _From: ["random@this.is.no.mail"],
                     Subject: "hoho",
                     ContentType: "multipart/mixed"
-                }.unwrap(),
-                body: MailBody::MultipleBodies {
-                    bodies: vec![
-                        Mail {
-                            headers: HeaderMap::new(),
-                            body: MailBody::SingleBody { body: resource }
-                        }
-                    ],
-                    hidden_text: Default::default()
                 }
+                .unwrap(),
+                body: MailBody::MultipleBodies {
+                    bodies: vec![Mail {
+                        headers: HeaderMap::new(),
+                        body: MailBody::SingleBody { body: resource },
+                    }],
+                    hidden_text: Default::default(),
+                },
             };
 
             let mail = mail.into_encodable_mail(ctx).wait().unwrap();
@@ -845,7 +804,7 @@ mod test {
             assert!(mail.headers().contains(ContentType));
             assert_not!(mail.headers().contains(ContentTransferEncoding));
 
-            if let MailBody::MultipleBodies { ref bodies, ..} = mail.body {
+            if let MailBody::MultipleBodies { ref bodies, .. } = mail.body {
                 let headers = bodies[0].headers();
                 assert_not!(headers.contains(Date));
             } else {
@@ -857,11 +816,14 @@ mod test {
         fn runs_contextual_validators() {
             let ctx = test_context();
             let mail = Mail {
-                headers: headers!{
+                headers: headers! {
                     _From: ["random@this.is.no.mail", "u.p.s@s.p.u"],
                     Subject: "hoho"
-                }.unwrap(),
-                body: MailBody::SingleBody { body: Resource::plain_text("r9", &ctx) }
+                }
+                .unwrap(),
+                body: MailBody::SingleBody {
+                    body: Resource::plain_text("r9", &ctx),
+                },
             };
 
             assert_err!(mail.into_encodable_mail(ctx).wait());
@@ -871,10 +833,13 @@ mod test {
         fn checks_there_is_from() {
             let ctx = test_context();
             let mail = Mail {
-                headers: headers!{
+                headers: headers! {
                     Subject: "hoho"
-                }.unwrap(),
-                body: MailBody::SingleBody { body: Resource::plain_text("r9", &ctx) }
+                }
+                .unwrap(),
+                body: MailBody::SingleBody {
+                    body: Resource::plain_text("r9", &ctx),
+                },
             };
 
             assert_err!(mail.into_encodable_mail(ctx).wait());
@@ -891,14 +856,9 @@ mod test {
             }?);
 
             let enc_mail = assert_ok!(mail.into_encodable_mail(ctx).wait());
-            let used_date = enc_mail.headers()
-                .get_single(Date)
-                .unwrap()
-                .unwrap();
+            let used_date = enc_mail.headers().get_single(Date).unwrap().unwrap();
 
             assert_eq!(&**used_date.body(), &provided_date);
         });
-
     }
-
 }

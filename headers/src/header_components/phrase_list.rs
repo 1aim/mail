@@ -1,15 +1,13 @@
 use soft_ascii_string::SoftAsciiChar;
 
-use vec1::{Vec1, Size0Error};
+use vec1::{Size0Error, Vec1};
 
+use error::ComponentCreationError;
+use internals::encoder::{EncodableInHeader, EncodingWriter};
 use internals::error::EncodingError;
-use internals::encoder::{EncodingWriter, EncodableInHeader};
-use ::{HeaderTryFrom, HeaderTryInto};
-use ::error::ComponentCreationError;
-
+use {HeaderTryFrom, HeaderTryInto};
 
 use super::Phrase;
-
 
 #[derive(Debug, Clone, Hash, Eq, PartialEq)]
 pub struct PhraseList(pub Vec1<Phrase>);
@@ -23,11 +21,9 @@ impl IntoIterator for PhraseList {
     }
 }
 
-
-impl EncodableInHeader for  PhraseList {
-
+impl EncodableInHeader for PhraseList {
     fn encode(&self, handle: &mut EncodingWriter) -> Result<(), EncodingError> {
-        sep_for!{ word in self.0.iter();
+        sep_for! { word in self.0.iter();
             sep {
                 //TODO handle this better by collapsing FWS
                 // <= isn't that allready fixed by FWS+ has content on line in EncodingBuffer
@@ -40,7 +36,7 @@ impl EncodableInHeader for  PhraseList {
 
         }
 
-        Ok( () )
+        Ok(())
     }
 
     fn boxed_clone(&self) -> Box<EncodableInHeader> {
@@ -49,39 +45,42 @@ impl EncodableInHeader for  PhraseList {
 }
 
 impl<T> HeaderTryFrom<T> for PhraseList
-    where T: HeaderTryInto<Phrase>
+where
+    T: HeaderTryInto<Phrase>,
 {
-    fn try_from( phrase: T ) -> Result<Self, ComponentCreationError> {
+    fn try_from(phrase: T) -> Result<Self, ComponentCreationError> {
         let phrase = phrase.try_into()?;
-        Ok( PhraseList( Vec1::new( phrase ) ) )
+        Ok(PhraseList(Vec1::new(phrase)))
     }
 }
-
 
 impl<T> HeaderTryFrom<Vec<T>> for PhraseList
-    where T: HeaderTryInto<Phrase>
+where
+    T: HeaderTryInto<Phrase>,
 {
     fn try_from(vec: Vec<T>) -> Result<Self, ComponentCreationError> {
-        try_from_into_iter( vec )
+        try_from_into_iter(vec)
     }
 }
 
-fn try_from_into_iter<IT>( phrases: IT ) -> Result<PhraseList, ComponentCreationError>
-    where IT: IntoIterator, IT::Item: HeaderTryInto<Phrase>
+fn try_from_into_iter<IT>(phrases: IT) -> Result<PhraseList, ComponentCreationError>
+where
+    IT: IntoIterator,
+    IT::Item: HeaderTryInto<Phrase>,
 {
     let mut iter = phrases.into_iter();
-    let mut vec = if let Some( first) = iter.next() {
-        Vec1::new( first.try_into()? )
+    let mut vec = if let Some(first) = iter.next() {
+        Vec1::new(first.try_into()?)
     } else {
-        return Err(
-            ComponentCreationError
-            ::from_parent(Size0Error, "PhraseList")
-        );
+        return Err(ComponentCreationError::from_parent(
+            Size0Error,
+            "PhraseList",
+        ));
     };
     for phrase in iter {
-        vec.push( phrase.try_into()? );
+        vec.push(phrase.try_into()?);
     }
-    Ok( PhraseList( vec ) )
+    Ok(PhraseList(vec))
 }
 
 //FIXME: dedup code duplication with:
@@ -116,7 +115,7 @@ impl_header_try_from_array! {
 mod test {
     use super::*;
 
-    ec_test!{ some_phrases, {
+    ec_test! { some_phrases, {
         PhraseList( vec1![
             Phrase::try_from( "hy there" )?,
             Phrase::try_from( "magic man" )?
@@ -131,7 +130,7 @@ mod test {
         Text " man"
     ]}
 
-    ec_test!{ some_simple_phrases_try_from, {
+    ec_test! { some_simple_phrases_try_from, {
         PhraseList::try_from(
             "hy there"
         )?
@@ -141,7 +140,7 @@ mod test {
         Text " there"
     ]}
 
-    ec_test!{ some_phrases_try_from, {
+    ec_test! { some_phrases_try_from, {
         PhraseList::try_from( [
             "hy there",
             "magic man"
@@ -154,4 +153,3 @@ mod test {
         Text " man"
     ]}
 }
-

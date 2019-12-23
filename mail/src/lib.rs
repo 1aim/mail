@@ -88,16 +88,16 @@
 //! re-exported as it can be seen as an internal part of the implementation
 //! which normally doesn't need to be accessed directly.
 
+extern crate mail_core;
+extern crate mail_headers;
 #[doc(hidden)]
 pub extern crate mail_internals as internals;
-extern crate mail_headers;
-extern crate mail_core;
 pub extern crate mail_template as template;
 use self::template as mail_template;
-#[cfg(feature="smtp")]
+#[cfg(feature = "smtp")]
 pub extern crate mail_smtp as smtp;
 
-#[cfg(all(feature="serde", not(feature="serde-impl")))]
+#[cfg(all(feature = "serde", not(feature = "serde-impl")))]
 compile_error! {"use feature `serde-impl` instead of pseudo-feature `serde`"}
 
 /// Re-export of all parts of the `mail_core` crate.
@@ -115,11 +115,11 @@ pub use mail_core::*;
 /// - `mail-smtp` (feature: `smtp`)
 pub mod error {
     pub use crate::internals::error::*;
+    pub use mail_core::error::*;
     pub use mail_headers::error::*;
     pub use mail_headers::InvalidHeaderName;
-    pub use mail_core::error::*;
     pub use mail_template::error::*;
-    #[cfg(feature="smtp")]
+    #[cfg(feature = "smtp")]
     pub use smtp::error::*;
 }
 
@@ -127,40 +127,18 @@ pub use self::internals::MailType;
 
 /// Re-export of headers from `mail-headers`.
 pub use mail_headers::{
-    headers,
-    header_components,
-
-    HasHeaderName,
-    HeaderKind,
-    HeaderObj,
-    HeaderObjTrait,
-    HeaderObjTraitBoxExt,
-    HeaderTryFrom,
-    HeaderTryInto,
-    MaxOneMarker,
-
-    map as header_map,
-
-    Header,
-    HeaderName,
-    HeaderMap,
-
-    def_headers,
+    def_headers, header_components, headers, map as header_map, HasHeaderName, Header, HeaderKind,
+    HeaderMap, HeaderName, HeaderObj, HeaderObjTrait, HeaderObjTraitBoxExt, HeaderTryFrom,
+    HeaderTryInto, MaxOneMarker,
 };
 
 #[doc(hidden)]
 pub use mail_headers::data;
 
-pub use self::header_components::{
-    MediaType,
-    Mailbox,
-    Email,
-    Domain
-};
-
+pub use self::header_components::{Domain, Email, Mailbox, MediaType};
 
 // Re-export some parts of mail-internals useful for writing custom header.
-pub use crate::internals::{encoder as  header_encoding};
+pub use crate::internals::encoder as header_encoding;
 
 /// Re-export of the default_impl parts from `mail-core`.
 ///
@@ -170,7 +148,7 @@ pub mod default_impl {
     pub use mail_core::default_impl::*;
 }
 
-#[cfg(feature="test-utils")]
+#[cfg(feature = "test-utils")]
 pub mod test_utils {
     pub use mail_core::test_utils::*;
 }

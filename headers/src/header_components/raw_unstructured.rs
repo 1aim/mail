@@ -3,13 +3,12 @@
 
 use soft_ascii_string::SoftAsciiStr;
 
-use internals::grammar::is_vchar;
+use data::Input;
+use error::ComponentCreationError;
+use internals::encoder::{EncodableInHeader, EncodingWriter};
 use internals::error::{EncodingError, EncodingErrorKind};
-use internals::encoder::{EncodingWriter, EncodableInHeader};
-use ::{HeaderTryFrom, HeaderTryInto};
-use ::error::ComponentCreationError;
-use ::data::Input;
-
+use internals::grammar::is_vchar;
+use {HeaderTryFrom, HeaderTryInto};
 
 /// A unstructured header field implementation which validates the given input
 /// but does not encode any utf8 even if it would have been necessary (it will
@@ -17,7 +16,7 @@ use ::data::Input;
 /// ones (no FWS marked for the encoder)
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
 pub struct RawUnstructured {
-    text: Input
+    text: Input,
 }
 
 impl RawUnstructured {
@@ -27,7 +26,8 @@ impl RawUnstructured {
 }
 
 impl<T> From<T> for RawUnstructured
-    where Input: From<T>
+where
+    Input: From<T>,
 {
     fn from(val: T) -> Self {
         RawUnstructured { text: val.into() }
@@ -35,11 +35,12 @@ impl<T> From<T> for RawUnstructured
 }
 
 impl<T> HeaderTryFrom<T> for RawUnstructured
-    where T: HeaderTryInto<Input>
+where
+    T: HeaderTryInto<Input>,
 {
     fn try_from(val: T) -> Result<Self, ComponentCreationError> {
         let input: Input = val.try_into()?;
-        Ok( input.into() )
+        Ok(input.into())
     }
 }
 
@@ -66,10 +67,8 @@ impl EncodableInHeader for RawUnstructured {
         let mail_type = handle.mail_type();
 
         if !self.text.chars().all(|ch| is_vchar(ch, mail_type)) {
-            return Err(
-                EncodingError::from(EncodingErrorKind::Malformed)
-                    .with_str_context(self.text.as_str())
-            );
+            return Err(EncodingError::from(EncodingErrorKind::Malformed)
+                .with_str_context(self.text.as_str()));
         }
 
         if handle.mail_type().is_internationalized() {
@@ -83,5 +82,3 @@ impl EncodableInHeader for RawUnstructured {
         Box::new(self.clone())
     }
 }
-
-

@@ -1,27 +1,23 @@
 use std::mem;
 
-use new_tokio_smtp::send_mail::{
-    self as smtp,
-    MailAddress,
-    EnvelopData
-};
+use new_tokio_smtp::send_mail::{self as smtp, EnvelopData, MailAddress};
 
-use mail_internals::{
-    MailType,
-    encoder::{EncodingBuffer, EncodableInHeader},
-    error::EncodingError
-};
 use headers::{
-    headers::{Sender, _From, _To},
+    error::BuildInValidationError,
     header_components::Mailbox,
-    error::{BuildInValidationError}
+    headers::{Sender, _From, _To},
 };
 use mail::{
+    error::{MailError, OtherValidationError},
     Mail,
-    error::{MailError, OtherValidationError}
+};
+use mail_internals::{
+    encoder::{EncodableInHeader, EncodingBuffer},
+    error::EncodingError,
+    MailType,
 };
 
-use ::error::{ OtherValidationError as AnotherOtherValidationError };
+use error::OtherValidationError as AnotherOtherValidationError;
 
 /// This type contains a mail and potentially some envelop data.
 ///
@@ -35,7 +31,7 @@ use ::error::{ OtherValidationError as AnotherOtherValidationError };
 #[derive(Clone, Debug)]
 pub struct MailRequest {
     mail: Mail,
-    envelop_data: Option<EnvelopData>
+    envelop_data: Option<EnvelopData>,
 }
 
 impl From<Mail> for MailRequest {
@@ -44,13 +40,13 @@ impl From<Mail> for MailRequest {
     }
 }
 
-
-
 impl MailRequest {
-
     /// creates a new `MailRequest` from a `Mail` instance
     pub fn new(mail: Mail) -> Self {
-        MailRequest { mail, envelop_data: None }
+        MailRequest {
+            mail,
+            envelop_data: None,
+        }
     }
 
     /// create a new `MailRequest` and use custom smtp `EnvelopData`
@@ -60,7 +56,10 @@ impl MailRequest {
     /// cases where you need to set it manually just import it from
     /// `new-tokio-smtp`.
     pub fn new_with_envelop(mail: Mail, envelop: EnvelopData) -> Self {
-        MailRequest { mail, envelop_data: Some(envelop) }
+        MailRequest {
+            mail,
+            envelop_data: Some(envelop),
+        }
     }
 
     /// replace the smtp `EnvelopData`
@@ -69,14 +68,16 @@ impl MailRequest {
     }
 
     pub fn _into_mail_with_envelop(self) -> Result<(Mail, EnvelopData), MailError> {
-        let envelop =
-            if let Some(envelop) = self.envelop_data { envelop }
-            else { derive_envelop_data_from_mail(&self.mail)? };
+        let envelop = if let Some(envelop) = self.envelop_data {
+            envelop
+        } else {
+            derive_envelop_data_from_mail(&self.mail)?
+        };
 
         Ok((self.mail, envelop))
     }
 
-    #[cfg(not(feature="extended-api"))]
+    #[cfg(not(feature = "extended-api"))]
     #[inline(always)]
     pub(crate) fn into_mail_with_envelop(self) -> Result<(Mail, EnvelopData), MailError> {
         self._into_mail_with_envelop()
@@ -87,7 +88,7 @@ impl MailRequest {
     /// If envelop data was explicitly set it is returned.
     /// If no envelop data was explicitly given it is derived from the
     /// Mail header fields using `derive_envelop_data_from_mail`.
-    #[cfg(feature="extended-api")]
+    #[cfg(feature = "extended-api")]
     #[inline(always)]
     pub fn into_mail_with_envelop(self) -> Result<(Mail, EnvelopData), MailError> {
         self._into_mail_with_envelop()
@@ -97,9 +98,13 @@ impl MailRequest {
 fn mailaddress_from_mailbox(mailbox: &Mailbox) -> Result<MailAddress, EncodingError> {
     let email = &mailbox.email;
     let needs_smtputf8 = email.check_if_internationalized();
-    let mt = if needs_smtputf8 { MailType::Internationalized } else { MailType::Ascii };
+    let mt = if needs_smtputf8 {
+        MailType::Internationalized
+    } else {
+        MailType::Ascii
+    };
     let mut buffer = EncodingBuffer::new(mt);
-     {
+    {
         let mut writer = buffer.writer();
         email.encode(&mut writer)?;
         writer.commit_partial_header();
@@ -128,39 +133,36 @@ fn mailaddress_from_mailbox(mailbox: &Mailbox) -> Result<MailAddress, EncodingEr
 /// - No To header
 /// - A From header with multiple addresses but no Sender header
 ///
-pub fn derive_envelop_data_from_mail(mail: &Mail)
-    -> Result<smtp::EnvelopData, MailError>
-{
+pub fn derive_envelop_data_from_mail(mail: &Mail) -> Result<smtp::EnvelopData, MailError> {
     let headers = mail.headers();
-    let smtp_from =
-        if let Some(sender) = headers.get_single(Sender) {
-            let sender = sender?;
-            //TODO double check with from field
-            mailaddress_from_mailbox(sender)?
-        } else {
-            let from = headers.get_single(_From)
-                .ok_or(OtherValidationError::NoFrom)??;
+    let smtp_from = if let Some(sender) = headers.get_single(Sender) {
+        let sender = sender?;
+        //TODO double check with from field
+        mailaddress_from_mailbox(sender)?
+    } else {
+        let from = headers
+            .get_single(_From)
+            .ok_or(OtherValidationError::NoFrom)??;
 
-            if from.len() > 1 {
-                return Err(BuildInValidationError::MultiMailboxFromWithoutSender.into());
-            }
+        if from.len() > 1 {
+            return Err(BuildInValidationError::MultiMailboxFromWithoutSender.into());
+        }
 
-            mailaddress_from_mailbox(from.first())?
-        };
+        mailaddress_from_mailbox(from.first())?
+    };
 
-    let smtp_to =
-        if let Some(to) = headers.get_single(_To) {
-            let to = to?;
-            to.try_mapped_ref(mailaddress_from_mailbox)?
-        } else {
-            return Err(AnotherOtherValidationError::NoTo.into());
-        };
+    let smtp_to = if let Some(to) = headers.get_single(_To) {
+        let to = to?;
+        to.try_mapped_ref(mailaddress_from_mailbox)?
+    } else {
+        return Err(AnotherOtherValidationError::NoTo.into());
+    };
 
     //TODO Cc, Bcc
 
     Ok(EnvelopData {
         from: Some(smtp_from),
-        to: smtp_to
+        to: smtp_to,
     })
 }
 
@@ -169,15 +171,8 @@ mod test {
 
     mod derive_envelop_data_from_mail {
         use super::super::derive_envelop_data_from_mail;
-        use mail::{
-            Mail,
-            Resource,
-            test_utils::CTX
-        };
-        use headers::{
-            headers::{_From, _To, Sender},
-        };
-
+        use headers::headers::{Sender, _From, _To};
+        use mail::{test_utils::CTX, Mail, Resource};
 
         fn mock_resource() -> Resource {
             Resource::plain_text("abcd↓efg", CTX.unwrap())
@@ -187,11 +182,14 @@ mod test {
         fn use_sender_if_given() {
             let mut mail = Mail::new_singlepart_mail(mock_resource());
 
-            mail.insert_headers(headers! {
-                Sender: "strange@caffe.test",
-                _From: ["ape@caffe.test", "epa@caffe.test"],
-                _To: ["das@ding.test"]
-            }.unwrap());
+            mail.insert_headers(
+                headers! {
+                    Sender: "strange@caffe.test",
+                    _From: ["ape@caffe.test", "epa@caffe.test"],
+                    _To: ["das@ding.test"]
+                }
+                .unwrap(),
+            );
 
             let envelop_data = derive_envelop_data_from_mail(&mail).unwrap();
 
@@ -204,10 +202,13 @@ mod test {
         #[test]
         fn use_from_if_no_sender_given() {
             let mut mail = Mail::new_singlepart_mail(mock_resource());
-            mail.insert_headers(headers! {
-                _From: ["ape@caffe.test"],
-                _To: ["das@ding.test"]
-            }.unwrap());
+            mail.insert_headers(
+                headers! {
+                    _From: ["ape@caffe.test"],
+                    _To: ["das@ding.test"]
+                }
+                .unwrap(),
+            );
 
             let envelop_data = derive_envelop_data_from_mail(&mail).unwrap();
 
@@ -220,10 +221,13 @@ mod test {
         #[test]
         fn fail_if_no_sender_but_multi_mailbox_from() {
             let mut mail = Mail::new_singlepart_mail(mock_resource());
-            mail.insert_headers(headers! {
-                _From: ["ape@caffe.test", "a@b.test"],
-                _To: ["das@ding.test"]
-            }.unwrap());
+            mail.insert_headers(
+                headers! {
+                    _From: ["ape@caffe.test", "a@b.test"],
+                    _To: ["das@ding.test"]
+                }
+                .unwrap(),
+            );
 
             let envelop_data = derive_envelop_data_from_mail(&mail);
 
@@ -234,29 +238,29 @@ mod test {
         #[test]
         fn use_to() {
             let mut mail = Mail::new_singlepart_mail(mock_resource());
-            mail.insert_headers(headers! {
-                _From: ["ape@caffe.test"],
-                _To: ["das@ding.test"]
-            }.unwrap());
+            mail.insert_headers(
+                headers! {
+                    _From: ["ape@caffe.test"],
+                    _To: ["das@ding.test"]
+                }
+                .unwrap(),
+            );
 
             let envelop_data = derive_envelop_data_from_mail(&mail).unwrap();
 
-            assert_eq!(
-                envelop_data.to.first().as_str(),
-                "das@ding.test"
-            );
+            assert_eq!(envelop_data.to.first().as_str(), "das@ding.test");
         }
     }
 
     mod mailaddress_from_mailbox {
-        use headers::{
-            HeaderTryFrom,
-            header_components::{Mailbox, Email}
-        };
         use super::super::mailaddress_from_mailbox;
+        use headers::{
+            header_components::{Email, Mailbox},
+            HeaderTryFrom,
+        };
 
         #[test]
-        #[cfg_attr(not(feature="test-with-traceing"), ignore)]
+        #[cfg_attr(not(feature = "test-with-traceing"), ignore)]
         fn does_not_panic_with_tracing_enabled() {
             let mb = Mailbox::try_from("hy@b").unwrap();
             mailaddress_from_mailbox(&mb).unwrap();

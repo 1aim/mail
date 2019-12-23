@@ -1,11 +1,7 @@
-use quoted_string::spec::{
-    GeneralQSSpec,
-    PartialCodePoint,
-    WithoutQuotingValidator
-};
+use quoted_string::spec::{GeneralQSSpec, PartialCodePoint, WithoutQuotingValidator};
 
 use media_type_impl_utils::quoted_string;
-use ::MailType;
+use MailType;
 
 /// A Quoted String specification in context of Mail ([rfc5322](https://tools.ietf.org/html/rfc5322#section-2.2.3))
 ///
@@ -20,7 +16,6 @@ impl GeneralQSSpec for MailQsSpec {
     type Quoting = quoted_string::NormalQuoting;
     type Parsing = quoted_string::MimeParsing;
 }
-
 
 /// A Quoted String specification in context of Mail ([rfc5322](https://tools.ietf.org/html/rfc5322#section-2.2.3))
 ///
@@ -37,10 +32,9 @@ impl GeneralQSSpec for InternationalizedMailQsSpec {
 
 pub use self::quoted_string::MimeTokenValidator as UnquotedTokenValidator;
 
-
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
 pub struct UnquotedATextValidator {
-    mail_type: MailType
+    mail_type: MailType,
 }
 
 impl UnquotedATextValidator {
@@ -51,20 +45,22 @@ impl UnquotedATextValidator {
 
 impl WithoutQuotingValidator for UnquotedATextValidator {
     fn next(&mut self, pcp: PartialCodePoint) -> bool {
-       is_atext(pcp, self.mail_type)
+        is_atext(pcp, self.mail_type)
     }
 }
-
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
 pub struct UnquotedDotAtomTextValidator {
     mail_type: MailType,
-    allow_dot: bool
+    allow_dot: bool,
 }
 
 impl UnquotedDotAtomTextValidator {
     pub fn new(mail_type: MailType) -> Self {
-        UnquotedDotAtomTextValidator { mail_type, allow_dot: false }
+        UnquotedDotAtomTextValidator {
+            mail_type,
+            allow_dot: false,
+        }
     }
 }
 
@@ -87,7 +83,6 @@ impl WithoutQuotingValidator for UnquotedDotAtomTextValidator {
         self.allow_dot
     }
 }
-
 
 //TODO replace with lookup table (which could be placed in `::grammar`)!
 fn is_atext(pcp: PartialCodePoint, mail_type: MailType) -> bool {

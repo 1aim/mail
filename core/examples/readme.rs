@@ -6,24 +6,17 @@ extern crate mail_internals;
 #[macro_use]
 extern crate mail_headers;
 
-use std::str;
 use futures::Future;
+use std::str;
 
 use mail_internals::MailType;
 
 // In the facade this is the `headers` module.
-use mail_headers::{
-    headers::*,
-    header_components::Domain
-};
+use mail_headers::{header_components::Domain, headers::*};
 
 // In the facade this types (and the default_impl module)
 // are also exposed at top level
-use mail_core::{
-    Mail,
-    default_impl::simple_context,
-    error::MailError
-};
+use mail_core::{default_impl::simple_context, error::MailError, Mail};
 
 fn print_some_mail() -> Result<(), MailError> {
     // Domain will implement `from_str` in the future,
@@ -43,7 +36,8 @@ fn print_some_mail() -> Result<(), MailError> {
 
     // We don't added any think which needs loading but we could have
     // and all of it would have been loaded concurrent and async.
-    let encoded = mail.into_encodable_mail(ctx.clone())
+    let encoded = mail
+        .into_encodable_mail(ctx.clone())
         .wait()?
         .encode_into_bytes(MailType::Ascii)?;
 

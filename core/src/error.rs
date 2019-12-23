@@ -2,15 +2,13 @@
 use std::fmt::{self, Display};
 use std::io;
 
-use failure::{Fail, Context, Backtrace};
+use failure::{Backtrace, Context, Fail};
 
-use internals::error::EncodingError;
 use headers::error::{
-    BuildInValidationError,
-    HeaderTypeError, ComponentCreationError,
-    HeaderValidationError
+    BuildInValidationError, ComponentCreationError, HeaderTypeError, HeaderValidationError,
 };
-use ::IRI;
+use internals::error::EncodingError;
+use IRI;
 // errors from loading a Resource (which includes encoding it's body)
 //                /  NotFound       | IRI (no Backtrace neede)     \ MailError::ResourceLoading
 // ResourceError <   LoadingFailed  | chain Error                  /
@@ -31,7 +29,7 @@ pub enum ResourceError {
     /// resources to not be re-encoded every time they are
     /// used.
     #[fail(display = "{}", _0)]
-    Encoding(EncodingError)
+    Encoding(EncodingError),
 }
 
 impl From<EncodingError> for ResourceError {
@@ -58,14 +56,14 @@ pub enum ResourceLoadingErrorKind {
     LoadingFailed,
 
     #[fail(display = "automatically detecting the media type failed")]
-    MediaTypeDetectionFailed
+    MediaTypeDetectionFailed,
 }
 
 /// The loading of an Resource failed.
 #[derive(Debug)]
 pub struct ResourceLoadingError {
     inner: Context<ResourceLoadingErrorKind>,
-    iri: Option<IRI>
+    iri: Option<IRI>,
 }
 
 impl Display for ResourceLoadingError {
@@ -85,7 +83,6 @@ impl Fail for ResourceLoadingError {
 }
 
 impl ResourceLoadingError {
-
     /// The kind of error which caused the loading to fail.
     pub fn kind(&self) -> ResourceLoadingErrorKind {
         *self.inner.get_context()
@@ -98,7 +95,8 @@ impl ResourceLoadingError {
 
     /// Sets the source IRI if not already set and returns self.
     pub fn with_source_iri_or_else<F>(mut self, func: F) -> Self
-        where F: FnOnce() -> Option<IRI>
+    where
+        F: FnOnce() -> Option<IRI>,
     {
         if self.iri.is_none() {
             self.iri = func();
@@ -139,9 +137,7 @@ impl From<(Option<IRI>, ResourceLoadingErrorKind)> for ResourceLoadingError {
 
 impl From<(Option<IRI>, Context<ResourceLoadingErrorKind>)> for ResourceLoadingError {
     fn from((iri, inner): (Option<IRI>, Context<ResourceLoadingErrorKind>)) -> Self {
-        ResourceLoadingError {
-            inner, iri
-        }
+        ResourceLoadingError { inner, iri }
     }
 }
 
@@ -150,7 +146,6 @@ impl From<io::Error> for ResourceLoadingError {
         err.context(ResourceLoadingErrorKind::LoadingFailed).into()
     }
 }
-
 
 #[derive(Debug, Fail)]
 pub enum OtherValidationError {
@@ -182,7 +177,7 @@ pub enum OtherValidationError {
 
     /// A mail (top level, not in multipart) requires a `From` header to be given.
     #[fail(display = "mail did not contain a From header")]
-    NoFrom
+    NoFrom,
 }
 
 impl From<OtherValidationError> for HeaderValidationError {
@@ -227,7 +222,7 @@ pub enum MailError {
     /// E.g. the file to attach or the image to embedded could not
     /// be found.
     #[fail(display = "{}", _0)]
-    ResourceLoading(ResourceLoadingError)
+    ResourceLoading(ResourceLoadingError),
 }
 
 impl From<BuildInValidationError> for MailError {
@@ -248,7 +243,6 @@ impl From<EncodingError> for MailError {
     }
 }
 
-
 impl From<HeaderValidationError> for MailError {
     fn from(err: HeaderValidationError) -> Self {
         MailError::Validation(err)
@@ -265,7 +259,7 @@ impl From<ResourceError> for MailError {
     fn from(err: ResourceError) -> Self {
         match err {
             ResourceError::Loading(err) => MailError::ResourceLoading(err),
-            ResourceError::Encoding(err) => MailError::Encoding(err)
+            ResourceError::Encoding(err) => MailError::Encoding(err),
         }
     }
 }
@@ -275,7 +269,6 @@ impl From<ComponentCreationError> for MailError {
         MailError::Component(err)
     }
 }
-
 
 /// Error returned when trying to _unload_ and `Resource` and it fails.
 #[derive(Copy, Clone, Debug, Fail)]
@@ -289,5 +282,5 @@ pub enum ResourceNotUnloadableError {
     /// that unloading is just for thinks like caching, it doesn't affect
     /// the deletion/dropping of `Resource` instances.
     #[fail(display = "resource has no source, can't unload it")]
-    NoSource
+    NoSource,
 }

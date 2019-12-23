@@ -1,9 +1,9 @@
-use {base64 as extern_base64};
-use soft_ascii_string::{ SoftAsciiString, SoftAsciiChar};
+use base64 as extern_base64;
 use failure::Fail;
+use soft_ascii_string::{SoftAsciiChar, SoftAsciiString};
 
-use ::utils::is_utf8_continuation_byte;
-use ::error::{EncodingError, EncodingErrorKind};
+use error::{EncodingError, EncodingErrorKind};
+use utils::is_utf8_continuation_byte;
 
 use super::encoded_word::EncodedWordWriter;
 
@@ -15,24 +15,28 @@ const USE_PADDING: bool = true;
 const ECW_STRIP_WHITESPACE: bool = false;
 const NON_ECW_STRIP_WHITESPACE: bool = true;
 
-
 #[inline]
 pub fn normal_encode<R: AsRef<[u8]>>(input: R) -> SoftAsciiString {
-    let res = extern_base64::encode_config( input.as_ref(), extern_base64::Config::new(
-        //FIXME: check if line wrap should be used here, I thinks it should
-        CHARSET, USE_PADDING, NON_ECW_STRIP_WHITESPACE, LINE_WRAP
-    ));
+    let res = extern_base64::encode_config(
+        input.as_ref(),
+        extern_base64::Config::new(
+            //FIXME: check if line wrap should be used here, I thinks it should
+            CHARSET,
+            USE_PADDING,
+            NON_ECW_STRIP_WHITESPACE,
+            LINE_WRAP,
+        ),
+    );
     SoftAsciiString::from_unchecked(res)
 }
 
 #[inline]
 pub fn normal_decode<R: AsRef<[u8]>>(input: R) -> Result<Vec<u8>, EncodingError> {
-    extern_base64::decode_config( input.as_ref(), extern_base64::Config::new(
-        CHARSET, USE_PADDING, NON_ECW_STRIP_WHITESPACE, LINE_WRAP
-    )).map_err(|err| err
-        .context(EncodingErrorKind::Malformed)
-        .into()
+    extern_base64::decode_config(
+        input.as_ref(),
+        extern_base64::Config::new(CHARSET, USE_PADDING, NON_ECW_STRIP_WHITESPACE, LINE_WRAP),
     )
+    .map_err(|err| err.context(EncodingErrorKind::Malformed).into())
 }
 
 #[inline(always)]
@@ -49,20 +53,24 @@ fn calc_max_input_len(max_output_len: usize) -> usize {
 /// for now this only supports utf8/ascii input, as
 /// we have to know where we can split
 #[inline(always)]
-pub fn encoded_word_encode<O, R: AsRef<str>>( input: R, out: &mut O )
-    where O: EncodedWordWriter
+pub fn encoded_word_encode<O, R: AsRef<str>>(input: R, out: &mut O)
+where
+    O: EncodedWordWriter,
 {
     _encoded_word_encode(input.as_ref(), out)
 }
 
-fn _encoded_word_encode<O>( input: &str, out: &mut O )
-    where O: EncodedWordWriter
+fn _encoded_word_encode<O>(input: &str, out: &mut O)
+where
+    O: EncodedWordWriter,
 {
-    let config = extern_base64::Config::new(
-        CHARSET, USE_PADDING, ECW_STRIP_WHITESPACE, NO_LINE_WRAP
-    );
+    let config =
+        extern_base64::Config::new(CHARSET, USE_PADDING, ECW_STRIP_WHITESPACE, NO_LINE_WRAP);
 
-    debug_assert!( USE_PADDING == true, "size calculation is tailored for padding");
+    debug_assert!(
+        USE_PADDING == true,
+        "size calculation is tailored for padding"
+    );
 
     let max_output_len = out.max_payload_len();
     let max_input_len = calc_max_input_len(max_output_len);
@@ -105,7 +113,7 @@ fn _encoded_word_encode<O>( input: &str, out: &mut O )
         }
 
         if rest.len() == 0 {
-            break
+            break;
         } else {
             out.start_next_encoded_word();
         }
@@ -114,38 +122,37 @@ fn _encoded_word_encode<O>( input: &str, out: &mut O )
 }
 
 #[inline(always)]
-pub fn encoded_word_decode<R: AsRef<[u8]>>(input: R)
-    -> Result<Vec<u8>, EncodingError>
-{
-    extern_base64::decode_config(input.as_ref(), extern_base64::Config::new(
-        CHARSET, USE_PADDING, ECW_STRIP_WHITESPACE, NO_LINE_WRAP
-    )).map_err(|err| err
-        .context(EncodingErrorKind::Malformed)
-        .into()
+pub fn encoded_word_decode<R: AsRef<[u8]>>(input: R) -> Result<Vec<u8>, EncodingError> {
+    extern_base64::decode_config(
+        input.as_ref(),
+        extern_base64::Config::new(CHARSET, USE_PADDING, ECW_STRIP_WHITESPACE, NO_LINE_WRAP),
     )
+    .map_err(|err| err.context(EncodingErrorKind::Malformed).into())
 }
-
-
-
 
 #[cfg(test)]
 mod test {
-    use soft_ascii_string::SoftAsciiStr;
-    use bind::encoded_word::{VecWriter, EncodedWordEncoding};
     use super::*;
+    use bind::encoded_word::{EncodedWordEncoding, VecWriter};
+    use soft_ascii_string::SoftAsciiStr;
 
     #[test]
     fn encoding_uses_line_wrap() {
         let input = concat!(
-            "0123456789", "0123456789",
-            "0123456789", "0123456789",
-            "0123456789", "0123456789",
+            "0123456789",
+            "0123456789",
+            "0123456789",
+            "0123456789",
+            "0123456789",
+            "0123456789",
         );
 
         let res = normal_encode(input);
 
-        assert_eq!(res.as_str(),
-           "MDEyMzQ1Njc4OTAxMjM0NTY3ODkwMTIzNDU2Nzg5MDEyMzQ1Njc4OTAxMjM0NTY3ODkwMTIzNDU2Nz\r\ng5");
+        assert_eq!(
+            res.as_str(),
+            "MDEyMzQ1Njc4OTAxMjM0NTY3ODkwMTIzNDU2Nzg5MDEyMzQ1Njc4OTAxMjM0NTY3ODkwMTIzNDU2Nz\r\ng5"
+        );
 
         let dec = normal_decode(res).unwrap();
 
@@ -164,26 +171,16 @@ mod test {
 
     #[test]
     fn encode_decode_normal() {
-        let pairs: &[(&str,&[u8])] = &[
+        let pairs: &[(&str, &[u8])] = &[
             (
                 "this is some\r\nlong\r\ntest.",
-                b"dGhpcyBpcyBzb21lDQpsb25nDQp0ZXN0Lg=="
+                b"dGhpcyBpcyBzb21lDQpsb25nDQp0ZXN0Lg==",
             ),
-            (
-                "",
-                b""
-            )
+            ("", b""),
         ];
         for &(raw, encoded) in pairs.iter() {
-            assert_eq!(
-                normal_encode(raw).as_bytes(),
-                encoded
-            );
-            assert_eq!(
-                assert_ok!(normal_decode(encoded)),
-                raw.as_bytes()
-            )
-
+            assert_eq!(normal_encode(raw).as_bytes(), encoded);
+            assert_eq!(assert_ok!(normal_decode(encoded)), raw.as_bytes())
         }
     }
 
@@ -250,7 +247,6 @@ mod test {
             "=?utf8?B?4oaT?="
         ]
     }
-
 
     #[test]
     fn decode_encoded_word() {

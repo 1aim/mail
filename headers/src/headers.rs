@@ -1,11 +1,5 @@
-
-
-use ::header_components;
-use self::validators::{
-    from as validator_from,
-    resent_any as validator_resent_any
-};
-
+use self::validators::{from as validator_from, resent_any as validator_resent_any};
+use header_components;
 
 def_headers! {
     test_name: validate_header_names,
@@ -117,11 +111,10 @@ def_headers! {
 mod validators {
     use std::collections::HashMap;
 
-    use ::{ HeaderMap, HeaderKind, HeaderName, HeaderObj };
-    use ::error::HeaderValidationError;
+    use error::HeaderValidationError;
+    use {HeaderKind, HeaderMap, HeaderName, HeaderObj};
 
-    use super::{ _From, ResentFrom, Sender, ResentSender, ResentDate };
-
+    use super::{ResentDate, ResentFrom, ResentSender, Sender, _From};
 
     pub fn from(map: &HeaderMap) -> Result<(), HeaderValidationError> {
         // Note: we do not care about the quantity of From bodies,
@@ -130,10 +123,10 @@ mod validators {
         //  therefore not cast to it,
         // whatever header put them in has also put in
         // this bit of validation )
-        let needs_sender =
-            map.get(_From)
-                .filter_map(|res| res.ok())
-                .any(|list| list.len() > 1);
+        let needs_sender = map
+            .get(_From)
+            .filter_map(|res| res.ok())
+            .any(|list| list.len() > 1);
 
         if needs_sender && !map.contains(Sender) {
             //this is the wrong bail...
@@ -143,7 +136,7 @@ mod validators {
     }
 
     fn validate_resent_block<'a>(
-            block: &HashMap<HeaderName, &'a HeaderObj>
+        block: &HashMap<HeaderName, &'a HeaderObj>,
     ) -> Result<(), HeaderValidationError> {
         if !block.contains_key(&ResentDate::name()) {
             //this is the wrong bail...
@@ -184,12 +177,9 @@ mod validators {
 
 #[cfg(test)]
 mod test {
-    use ::header_components::DateTime;
-    use ::{HeaderMap, HeaderKind};
-    use ::headers::{
-        _From, ResentFrom, ResentTo, ResentDate,
-        Sender, ResentSender, Subject
-    };
+    use header_components::DateTime;
+    use headers::{ResentDate, ResentFrom, ResentSender, ResentTo, Sender, Subject, _From};
+    use {HeaderKind, HeaderMap};
 
     test!(from_validation_normal {
         let mut map = HeaderMap::new();
@@ -272,5 +262,4 @@ mod test {
         map.insert(ResentSender ::auto_body( "a@b.c"           )?);
         assert_ok!(map.use_contextual_validators());
     });
-
 }

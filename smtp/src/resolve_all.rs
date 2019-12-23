@@ -1,15 +1,16 @@
-use std::mem;
 use std::iter::FromIterator;
+use std::mem;
 
-use futures::{Future, Async, Poll};
+use futures::{Async, Future, Poll};
 
 pub enum AltFuse<F: Future> {
     Future(F),
-    Resolved(Result<F::Item, F::Error>)
+    Resolved(Result<F::Item, F::Error>),
 }
 
 impl<F> Future for AltFuse<F>
-    where F: Future
+where
+    F: Future,
 {
     type Item = ();
     //TODO[futures/v>=0.2 |rust/! type]: use Never or !
@@ -21,8 +22,8 @@ impl<F> Future for AltFuse<F>
             AltFuse::Future(ref mut fut) => match fut.poll() {
                 Ok(Async::NotReady) => return Ok(Async::NotReady),
                 Ok(Async::Ready(val)) => Ok(val),
-                Err(err) => Err(err)
-            }
+                Err(err) => Err(err),
+            },
         };
 
         *self = AltFuse::Resolved(result);
@@ -30,15 +31,16 @@ impl<F> Future for AltFuse<F>
     }
 }
 
-
 pub struct ResolveAll<F>
-    where F: Future
+where
+    F: Future,
 {
-    all: Vec<AltFuse<F>>
+    all: Vec<AltFuse<F>>,
 }
 
 impl<F> Future for ResolveAll<F>
-    where F: Future
+where
+    F: Future,
 {
     type Item = Vec<Result<F::Item, F::Error>>;
     //TODO[futures >= 0.2/rust ! type]: use Never or !
@@ -55,9 +57,10 @@ impl<F> Future for ResolveAll<F>
             Ok(Async::NotReady)
         } else {
             let results = mem::replace(&mut self.all, Vec::new())
-                .into_iter().map(|alt_fuse_fut| match alt_fuse_fut {
+                .into_iter()
+                .map(|alt_fuse_fut| match alt_fuse_fut {
                     AltFuse::Resolved(res) => res,
-                    AltFuse::Future(_) => unreachable!()
+                    AltFuse::Future(_) => unreachable!(),
                 })
                 .collect();
             Ok(Async::Ready(results))
@@ -66,15 +69,14 @@ impl<F> Future for ResolveAll<F>
 }
 
 impl<I> FromIterator<I> for ResolveAll<I>
-    where I: Future
+where
+    I: Future,
 {
     fn from_iter<T>(all: T) -> Self
-        where T: IntoIterator<Item = I>
+    where
+        T: IntoIterator<Item = I>,
     {
-         let all = all
-            .into_iter()
-            .map(|fut| AltFuse::Future(fut))
-            .collect();
+        let all = all.into_iter().map(|fut| AltFuse::Future(fut)).collect();
 
         ResolveAll { all }
     }

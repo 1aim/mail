@@ -1,31 +1,20 @@
 //! Module implementing mail sending using `new-tokio-smtp::send_mail`.
 
-use std::iter::{once as one};
+use std::iter::once as one;
 
 use futures::{
+    future::{self, Either, Future},
     stream::{self, Stream},
-    future::{self, Future, Either}
 };
 
-use mail_internals::{
-    MailType,
-    encoder::EncodingBuffer
-};
 use mail::Context;
+use mail_internals::{encoder::EncodingBuffer, MailType};
 
 use new_tokio_smtp::{
-    ConnectionConfig,
-    Cmd,
-    SetupTls,
-    send_mail::MailEnvelop,
-    Connection,
-    send_mail as smtp
+    send_mail as smtp, send_mail::MailEnvelop, Cmd, Connection, ConnectionConfig, SetupTls,
 };
 
-use ::{
-    error::MailSendError,
-    request::MailRequest
-};
+use {error::MailSendError, request::MailRequest};
 
 /// Sends a given mail (request).
 ///
@@ -38,15 +27,22 @@ use ::{
 /// You can use `MailRequest: From<Mail>` (i.e. `mail.into()`) to pass in
 /// a mail and derive the envelop data (from, to) from it or create your own
 /// mail request if different smtp envelop data is needed.
-pub fn send<A, S>(mail: MailRequest, conconf: ConnectionConfig<A, S>, ctx: impl Context)
-    -> impl Future<Item=(), Error=MailSendError>
-    where A: Cmd, S: SetupTls
+pub fn send<A, S>(
+    mail: MailRequest,
+    conconf: ConnectionConfig<A, S>,
+    ctx: impl Context,
+) -> impl Future<Item = (), Error = MailSendError>
+where
+    A: Cmd,
+    S: SetupTls,
 {
     let fut = encode(mail, ctx)
-        .then(move |envelop_res| Connection
-            ::connect_send_quit(conconf, one(envelop_res))
-            .collect())
-        .map(|mut results| results.pop().expect("[BUG] sending one mail expects one result"));
+        .then(move |envelop_res| Connection::connect_send_quit(conconf, one(envelop_res)).collect())
+        .map(|mut results| {
+            results
+                .pop()
+                .expect("[BUG] sending one mail expects one result")
+        });
 
     fut
 }
@@ -74,9 +70,12 @@ pub fn send<A, S>(mail: MailRequest, conconf: ConnectionConfig<A, S>, ctx: impl 
 pub fn send_batch<A, S, C>(
     mails: Vec<MailRequest>,
     conconf: ConnectionConfig<A, S>,
-    ctx: C
-) -> impl Stream<Item=(), Error=MailSendError>
-    where A: Cmd, S: SetupTls, C: Context
+    ctx: C,
+) -> impl Stream<Item = (), Error = MailSendError>
+where
+    A: Cmd,
+    S: SetupTls,
+    C: Context,
 {
     let iter = mails.into_iter().map(move |mail| encode(mail, ctx.clone()));
 
@@ -88,8 +87,9 @@ pub fn send_batch<A, S, C>(
 }
 
 //FIXME[futures/v>=0.2] use Error=Never
-fn collect_res<S, E>(stream: S) -> impl Future<Item=Vec<Result<S::Item, S::Error>>, Error=E>
-    where S: Stream
+fn collect_res<S, E>(stream: S) -> impl Future<Item = Vec<Result<S::Item, S::Error>>, Error = E>
+where
+    S: Stream,
 {
     stream.then(|res| Ok(res)).collect()
 }
@@ -105,34 +105,40 @@ fn collect_res<S, E>(stream: S) -> impl Future<Item=Vec<Result<S::Item, S::Error
 /// then take a connection, test it, use the mail envelops with `new-tokio-smtp`'s
 /// `SendAllMails` stream with a `on_completion` handler which places it
 /// back in the pool.
-pub fn encode<C>(request: MailRequest, ctx: C)
-    -> impl Future<Item=MailEnvelop, Error=MailSendError>
-    where C: Context
+pub fn encode<C>(
+    request: MailRequest,
+    ctx: C,
+) -> impl Future<Item = MailEnvelop, Error = MailSendError>
+where
+    C: Context,
 {
-    let (mail, envelop_data) =
-        match request.into_mail_with_envelop() {
-            Ok(pair) => pair,
-            Err(e) => return Either::A(future::err(e.into()))
-        };
+    let (mail, envelop_data) = match request.into_mail_with_envelop() {
+        Ok(pair) => pair,
+        Err(e) => return Either::A(future::err(e.into())),
+    };
 
     let fut = mail
         .into_encodable_mail(ctx.clone())
-        .and_then(move |enc_mail| ctx.offload_fn(move || {
-            let (mail_type, requirement) =
-                if envelop_data.needs_smtputf8() {
-                    (MailType::Internationalized, smtp::EncodingRequirement::Smtputf8)
+        .and_then(move |enc_mail| {
+            ctx.offload_fn(move || {
+                let (mail_type, requirement) = if envelop_data.needs_smtputf8() {
+                    (
+                        MailType::Internationalized,
+                        smtp::EncodingRequirement::Smtputf8,
+                    )
                 } else {
                     (MailType::Ascii, smtp::EncodingRequirement::None)
                 };
 
-            let mut buffer = EncodingBuffer::new(mail_type);
-            enc_mail.encode(&mut buffer)?;
+                let mut buffer = EncodingBuffer::new(mail_type);
+                enc_mail.encode(&mut buffer)?;
 
-            let vec_buffer: Vec<_> = buffer.into();
-            let smtp_mail = smtp::Mail::new(requirement, vec_buffer);
+                let vec_buffer: Vec<_> = buffer.into();
+                let smtp_mail = smtp::Mail::new(requirement, vec_buffer);
 
-            Ok(smtp::MailEnvelop::from((smtp_mail, envelop_data)))
-        }))
+                Ok(smtp::MailEnvelop::from((smtp_mail, envelop_data)))
+            })
+        })
         .map_err(MailSendError::from);
 
     Either::B(fut)

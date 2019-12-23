@@ -1,18 +1,14 @@
-
 use lazy_static::lazy_static;
 
 use headers::header_components::Domain;
 
-use crate::default_impl::simple_context::{
-    self, Context, ContextSetupError
-};
+use crate::default_impl::simple_context::{self, Context, ContextSetupError};
 
 pub struct CtxHolder {
-    inner: Result<Context, ContextSetupError>
+    inner: Result<Context, ContextSetupError>,
 }
 
 impl CtxHolder {
-
     pub fn get(&self) -> Result<&Context, &ContextSetupError> {
         self.inner.as_ref()
     }

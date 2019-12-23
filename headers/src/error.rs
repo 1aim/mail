@@ -1,31 +1,34 @@
 //! module contains the (new) errors emitted by this crate
 use std::fmt::{self, Display};
 
-use failure::{Fail, Context, Error as FError, Backtrace};
+use failure::{Backtrace, Context, Error as FError, Fail};
 
-use ::name::HeaderName;
+use name::HeaderName;
 
 /// This error can occur if different implementations for the
 /// same header (e.g. `Subject`) where used in the same `HeaderMap`.
 #[derive(Debug, Fail)]
-#[fail(display = "cast error caused by mixing different header implementations for {}", header_name)]
+#[fail(
+    display = "cast error caused by mixing different header implementations for {}",
+    header_name
+)]
 pub struct HeaderTypeError {
     header_name: HeaderName,
-    backtrace: Backtrace
+    backtrace: Backtrace,
 }
 
 impl HeaderTypeError {
     pub fn new(name: HeaderName) -> Self {
         HeaderTypeError {
             header_name: name,
-            backtrace: Backtrace::new()
+            backtrace: Backtrace::new(),
         }
     }
 
     pub fn new_with_backtrace(name: HeaderName, backtrace: Backtrace) -> Self {
         HeaderTypeError {
             header_name: name,
-            backtrace
+            backtrace,
         }
     }
 }
@@ -40,7 +43,7 @@ pub enum HeaderValidationError {
     #[fail(display = "{}", _0)]
     BuildIn(Context<BuildInValidationError>),
     #[fail(display = "{}", _0)]
-    Custom(FError)
+    Custom(FError),
 }
 
 impl From<BuildInValidationError> for HeaderValidationError {
@@ -59,16 +62,21 @@ impl From<Context<BuildInValidationError>> for HeaderValidationError {
 /// when running a header map validator.
 #[derive(Copy, Clone, Debug, Fail, PartialEq, Eq, Hash)]
 pub enum BuildInValidationError {
-
     /// This error is returned by `use_contextual_validators` if there is a "max one" inconsistency.
     ///
     /// I.e. if multiple implementations of the same header are used in the same map but
     /// the implementations do not agree on wether or not the header can appear at most one
     /// time in a header section.
-    #[fail(display = "{} header field contained both \"multi\" and \"max one\" header impl", header_name)]
+    #[fail(
+        display = "{} header field contained both \"multi\" and \"max one\" header impl",
+        header_name
+    )]
     MaxOneInconsistency { header_name: &'static str },
 
-    #[fail(display = "{} header field can appear at most one time in a header map", header_name)]
+    #[fail(
+        display = "{} header field can appear at most one time in a header map",
+        header_name
+    )]
     MoreThenOne { header_name: &'static str },
 
     #[fail(display = "From field contained multiple addresses but no Sender field was set")]
@@ -78,7 +86,7 @@ pub enum BuildInValidationError {
     ResentDateFieldMissing,
 
     #[fail(display = "Resent-From field in resent block without a Resent-Sender field")]
-    MultiMailboxResentFromWithoutResentSender
+    MultiMailboxResentFromWithoutResentSender,
 }
 
 macro_rules! header_validation_bail {
@@ -88,7 +96,6 @@ macro_rules! header_validation_bail {
     });
 }
 
-
 /// Helper type which is either a `Backtrace` or an full `failure::Error`.
 ///
 /// This can be used to either just contain a backtrace into an custom
@@ -97,22 +104,21 @@ macro_rules! header_validation_bail {
 #[derive(Debug)]
 pub enum ChainTail {
     Backtrace(Backtrace),
-    Error(FError)
+    Error(FError),
 }
 
 impl ChainTail {
-
     fn backtrace(&self) -> &Backtrace {
         match *self {
             ChainTail::Backtrace(ref trace) => trace,
-            ChainTail::Error(ref error) => error.backtrace()
+            ChainTail::Error(ref error) => error.backtrace(),
         }
     }
 
     fn as_fail(&self) -> Option<&Fail> {
         match *self {
             ChainTail::Backtrace(_) => None,
-            ChainTail::Error(ref error) => Some(error.as_fail())
+            ChainTail::Error(ref error) => Some(error.as_fail()),
         }
     }
 }
@@ -126,21 +132,21 @@ impl ChainTail {
 pub struct ComponentCreationError {
     component: &'static str,
     backtrace: ChainTail,
-    str_context: Option<String>
+    str_context: Option<String>,
 }
 
 impl ComponentCreationError {
-
     /// create a new `ComponentCreationError` based on a different error and the name of the component
     ///
     /// The name is normally the type name, for example `Email`, `Mailbox` etc.
     pub fn from_parent<P>(parent: P, component: &'static str) -> Self
-        where P: Into<FError>
+    where
+        P: Into<FError>,
     {
         ComponentCreationError {
             component,
             backtrace: ChainTail::Error(parent.into()),
-            str_context: None
+            str_context: None,
         }
     }
 
@@ -151,7 +157,7 @@ impl ComponentCreationError {
         ComponentCreationError {
             component,
             backtrace: ChainTail::Backtrace(Backtrace::new()),
-            str_context: None
+            str_context: None,
         }
     }
 
@@ -162,27 +168,30 @@ impl ComponentCreationError {
     /// The `str_context` is a snipped of text which can help a human to identify the
     /// invalid parts, e.g. for parsing a email it could be the invalid email address.
     pub fn new_with_str<I>(component: &'static str, str_context: I) -> Self
-        where I: Into<String>
+    where
+        I: Into<String>,
     {
         ComponentCreationError {
             component,
             backtrace: ChainTail::Backtrace(Backtrace::new()),
-            str_context: Some(str_context.into())
+            str_context: Some(str_context.into()),
         }
     }
 
     pub fn str_context(&self) -> Option<&str> {
-        self.str_context.as_ref().map(|s|&**s)
+        self.str_context.as_ref().map(|s| &**s)
     }
 
     pub fn set_str_context<I>(&mut self, ctx: I)
-        where I: Into<String>
+    where
+        I: Into<String>,
     {
         self.str_context = Some(ctx.into());
     }
 
     pub fn with_str_context<I>(mut self, ctx: I) -> Self
-        where I: Into<String>
+    where
+        I: Into<String>,
     {
         self.set_str_context(ctx);
         self

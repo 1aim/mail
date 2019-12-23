@@ -1,23 +1,19 @@
 use std::any::TypeId;
-use std::ops::{Deref, DerefMut};
 use std::fmt::{self, Debug};
+use std::ops::{Deref, DerefMut};
 
 use internals::{
+    encoder::{EncodableInHeader, EncodingWriter},
     error::EncodingError,
-    encoder::{
-        EncodableInHeader,
-        EncodingWriter,
-    }
 };
 
-
-use ::error::ComponentCreationError;
-use ::convert::HeaderTryInto;
-use ::name::{HeaderName, HasHeaderName};
+use convert::HeaderTryInto;
+use error::ComponentCreationError;
+use name::{HasHeaderName, HeaderName};
 //NOTE: this is a circular dependency between Header/HeaderMap
 // but putting up e.g. a GenericHeaderMap trait/interface is
 // not worth the work at all
-use ::map::HeaderMapValidator;
+use map::HeaderMapValidator;
 
 /// Trait representing a mail header.
 ///
@@ -25,7 +21,6 @@ use ::map::HeaderMapValidator;
 /// Use the `def_headers` macro instead.
 ///
 pub trait HeaderKind: Clone + Default + 'static {
-
     /// the component representing the header-field, e.g. `Unstructured` for `Subject`
     type Component: EncodableInHeader + Clone;
 
@@ -74,7 +69,8 @@ pub trait HeaderKind: Clone + Default + 'static {
     /// turn means that creating a `From` header from a array of strings
     /// can fail if one of them is not a valid email address.
     fn auto_body<H>(body: H) -> Result<Header<Self>, ComponentCreationError>
-        where H: HeaderTryInto<Self::Component>
+    where
+        H: HeaderTryInto<Self::Component>,
     {
         Ok(Self::body(HeaderTryInto::try_into(body)?))
     }
@@ -86,7 +82,8 @@ pub trait HeaderKind: Clone + Default + 'static {
 }
 
 impl<H> HasHeaderName for H
-    where H: HeaderKind
+where
+    H: HeaderKind,
 {
     fn get_name(&self) -> HeaderName {
         H::name()
@@ -97,13 +94,15 @@ pub trait MaxOneMarker: HeaderKind {}
 
 #[derive(Clone)]
 pub struct Header<H>
-    where H: HeaderKind
+where
+    H: HeaderKind,
 {
-    body: H::Component
+    body: H::Component,
 }
 
 impl<H> Header<H>
-    where H: HeaderKind
+where
+    H: HeaderKind,
 {
     pub fn new(body: H::Component) -> Header<H> {
         Header { body }
@@ -119,7 +118,8 @@ impl<H> Header<H>
 }
 
 impl<H> Deref for Header<H>
-    where H: HeaderKind
+where
+    H: HeaderKind,
 {
     type Target = H::Component;
     fn deref(&self) -> &Self::Target {
@@ -128,7 +128,8 @@ impl<H> Deref for Header<H>
 }
 
 impl<H> DerefMut for Header<H>
-    where H: HeaderKind
+where
+    H: HeaderKind,
 {
     fn deref_mut(&mut self) -> &mut Self::Target {
         self.body_mut()
@@ -136,7 +137,8 @@ impl<H> DerefMut for Header<H>
 }
 
 impl<H> Debug for Header<H>
-    where H: HeaderKind
+where
+    H: HeaderKind,
 {
     fn fmt(&self, fter: &mut fmt::Formatter) -> fmt::Result {
         self.body.fmt(fter)
@@ -160,7 +162,8 @@ pub trait HeaderObjTrait: Sync + Send + ::std::any::Any + Debug {
 }
 
 impl<H> HeaderObjTrait for Header<H>
-    where H: HeaderKind
+where
+    H: HeaderKind,
 {
     fn name(&self) -> HeaderName {
         H::name()
@@ -185,23 +188,25 @@ impl<H> HeaderObjTrait for Header<H>
 }
 
 impl<H> HasHeaderName for Header<H>
-    where H: HeaderKind
+where
+    H: HeaderKind,
 {
     fn get_name(&self) -> HeaderName {
         H::name()
     }
 }
 
-
 impl HeaderObj {
     pub fn is<H>(&self) -> bool
-        where H: HeaderKind
+    where
+        H: HeaderKind,
     {
         HeaderObjTrait::type_id(self) == TypeId::of::<Header<H>>()
     }
 
     pub fn downcast_ref<H>(&self) -> Option<&Header<H>>
-        where H: HeaderKind
+    where
+        H: HeaderKind,
     {
         if self.is::<H>() {
             Some(unsafe { &*(self as *const _ as *const Header<H>) })
@@ -211,7 +216,8 @@ impl HeaderObj {
     }
 
     pub fn downcast_mut<H>(&mut self) -> Option<&mut Header<H>>
-        where H: HeaderKind
+    where
+        H: HeaderKind,
     {
         if self.is::<H>() {
             Some(unsafe { &mut *(self as *mut _ as *mut Header<H>) })
@@ -235,13 +241,14 @@ impl HasHeaderName for HeaderObj {
 
 pub trait HeaderObjTraitBoxExt: Sized {
     fn downcast<H>(self) -> Result<Box<Header<H>>, Self>
-        where H: HeaderKind;
+    where
+        H: HeaderKind;
 }
 
 impl HeaderObjTraitBoxExt for Box<HeaderObjTrait> {
-
     fn downcast<H>(self) -> Result<Box<Header<H>>, Self>
-        where H: HeaderKind
+    where
+        H: HeaderKind,
     {
         if HeaderObjTrait::is::<H>(&*self) {
             let ptr: *mut (HeaderObj) = Box::into_raw(self);

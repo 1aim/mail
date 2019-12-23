@@ -1,90 +1,93 @@
-use std::{
-    ops::Deref,
-    str::FromStr
-};
-#[cfg(feature="serde")]
+#[cfg(feature = "serde")]
 use std::fmt;
+use std::{ops::Deref, str::FromStr};
 
-#[cfg(feature="serde")]
-use serde::{Serialize, Serializer, Deserialize, Deserializer, de::{self, Visitor}};
-use soft_ascii_string::{SoftAsciiStr,SoftAsciiChar};
-
-use media_type::{
-    MediaType as _MediaType,
-    Name, AnyMediaType,
-    spec::{MimeSpec, Ascii, Internationalized, Modern}
+#[cfg(feature = "serde")]
+use serde::{
+    de::{self, Visitor},
+    Deserialize, Deserializer, Serialize, Serializer,
 };
+use soft_ascii_string::{SoftAsciiChar, SoftAsciiStr};
+
 use internals::{
+    encoder::{EncodableInHeader, EncodingWriter},
     error::EncodingError,
-    encoder::{EncodingWriter, EncodableInHeader}
+};
+use media_type::{
+    spec::{Ascii, Internationalized, MimeSpec, Modern},
+    AnyMediaType, MediaType as _MediaType, Name,
 };
 
-use crate::{
-    HeaderTryFrom,
-    error::ComponentCreationError
-};
-
+use crate::{error::ComponentCreationError, HeaderTryFrom};
 
 #[derive(Debug, Clone)]
 pub struct MediaType {
     media_type: InternationalizedMediaType,
-    might_need_utf8: bool
+    might_need_utf8: bool,
 }
 
 impl MediaType {
-
     pub fn parse(media_type: &str) -> Result<Self, ComponentCreationError> {
-        let media_type = InternationalizedMediaType
-            ::parse(media_type)
-            .map_err(|e|
-                ComponentCreationError
-                ::from_parent(e.to_owned(), "MediaType")
+        let media_type = InternationalizedMediaType::parse(media_type).map_err(|e| {
+            ComponentCreationError::from_parent(e.to_owned(), "MediaType")
                 .with_str_context(media_type)
-            )?;
+        })?;
 
         Ok(media_type.into())
     }
 
     pub fn new<T, ST>(type_: T, subtype: ST) -> Result<Self, ComponentCreationError>
-        where T: AsRef<str>, ST: AsRef<str>
+    where
+        T: AsRef<str>,
+        ST: AsRef<str>,
     {
-        let media_type = AsciiMediaType
-            ::new(type_.as_ref(), subtype.as_ref())
-            .map_err(|e|
-                ComponentCreationError
-                ::from_parent(e, "MediaType")
-                .with_str_context(format!("{}/{}", type_.as_ref(), subtype.as_ref()))
-            )?;
+        let media_type = AsciiMediaType::new(type_.as_ref(), subtype.as_ref()).map_err(|e| {
+            ComponentCreationError::from_parent(e, "MediaType").with_str_context(format!(
+                "{}/{}",
+                type_.as_ref(),
+                subtype.as_ref()
+            ))
+        })?;
 
         Ok(media_type.into())
     }
 
-    pub fn new_with_params<T, ST, I, IV, IN>(type_: T, subtype: ST, params: I)
-        -> Result<Self, ComponentCreationError>
-        where T: AsRef<str>, ST: AsRef<str>,
-              I: IntoIterator<Item=(IV, IN)>,
-              IV: AsRef<str>, IN: AsRef<str>
+    pub fn new_with_params<T, ST, I, IV, IN>(
+        type_: T,
+        subtype: ST,
+        params: I,
+    ) -> Result<Self, ComponentCreationError>
+    where
+        T: AsRef<str>,
+        ST: AsRef<str>,
+        I: IntoIterator<Item = (IV, IN)>,
+        IV: AsRef<str>,
+        IN: AsRef<str>,
     {
-        let media_type = InternationalizedMediaType
-            ::new_with_params(type_.as_ref(), subtype.as_ref(), params)
-            .map_err(|e|
-                ComponentCreationError
-                ::from_parent(e, "MediaType")
-                .with_str_context(format!("{}/{} <params-eluded>",
-                    type_.as_ref(), subtype.as_ref()))
-            )?;
+        let media_type =
+            InternationalizedMediaType::new_with_params(type_.as_ref(), subtype.as_ref(), params)
+                .map_err(|e| {
+                ComponentCreationError::from_parent(e, "MediaType").with_str_context(format!(
+                    "{}/{} <params-eluded>",
+                    type_.as_ref(),
+                    subtype.as_ref()
+                ))
+            })?;
 
         Ok(media_type.into())
     }
 
     pub fn remove_param<N>(&mut self, name: N) -> bool
-        where N: for<'a> PartialEq<Name<'a>>
+    where
+        N: for<'a> PartialEq<Name<'a>>,
     {
         self.media_type.remove_param(name)
     }
 
     pub fn set_param<N, V>(&mut self, name: N, value: V)
-        where N: AsRef<str>, V: AsRef<str>
+    where
+        N: AsRef<str>,
+        V: AsRef<str>,
     {
         self.media_type.set_param(name, value)
     }
@@ -96,7 +99,6 @@ impl FromStr for MediaType {
         MediaType::parse(inp)
     }
 }
-
 
 impl Deref for MediaType {
     type Target = AnyMediaType;
@@ -113,16 +115,16 @@ impl From<AsciiMediaType> for MediaType {
     fn from(media_type: AsciiMediaType) -> Self {
         MediaType {
             media_type: media_type.into(),
-            might_need_utf8: false
+            might_need_utf8: false,
         }
     }
 }
 
 impl From<InternationalizedMediaType> for MediaType {
-    fn from(media_type: InternationalizedMediaType) -> Self{
+    fn from(media_type: InternationalizedMediaType) -> Self {
         MediaType {
             media_type: media_type,
-            might_need_utf8: true
+            might_need_utf8: true,
         }
     }
 }
@@ -157,9 +159,7 @@ impl<'a> HeaderTryFrom<&'a str> for MediaType {
     }
 }
 
-
-impl EncodableInHeader for  MediaType {
-
+impl EncodableInHeader for MediaType {
     fn encode(&self, handle: &mut EncodingWriter) -> Result<(), EncodingError> {
         let no_recheck_needed = handle.mail_type().is_internationalized() || !self.might_need_utf8;
 
@@ -196,21 +196,21 @@ impl EncodableInHeader for  MediaType {
     }
 }
 
-
-#[cfg(feature="serde")]
+#[cfg(feature = "serde")]
 impl Serialize for MediaType {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-        where S: Serializer
+    where
+        S: Serializer,
     {
         serializer.serialize_str(self.as_str_repr())
     }
 }
 
-#[cfg(feature="serde")]
+#[cfg(feature = "serde")]
 impl<'de> Deserialize<'de> for MediaType {
-
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-        where D: Deserializer<'de>
+    where
+        D: Deserializer<'de>,
     {
         struct MediaTypeVisitor;
 
@@ -225,8 +225,7 @@ impl<'de> Deserialize<'de> for MediaType {
             where
                 E: de::Error,
             {
-                let mt = s.parse()
-                    .map_err(|err| E::custom(err))?;
+                let mt = s.parse().map_err(|err| E::custom(err))?;
 
                 Ok(mt)
             }
@@ -401,12 +400,11 @@ impl<'de> Deserialize<'de> for MediaType {
 //    return Ok((None, is_encoded))
 //}
 
-
 #[cfg(test)]
 mod test {
     use super::*;
 
-    ec_test!{ writing_encoded, {
+    ec_test! { writing_encoded, {
         MediaType::try_from("text/plain; arbitrary*=utf8''this%20is%it")?
     } => ascii => [
         Text "text/plain",
@@ -416,7 +414,7 @@ mod test {
         Text " arbitrary*=utf8''this%20is%it"
     ]}
 
-    ec_test!{ writing_normal, {
+    ec_test! { writing_normal, {
         MediaType::try_from("text/plain; a=abc")?
     } => ascii => [
         Text "text/plain",
@@ -426,7 +424,7 @@ mod test {
         Text " a=abc"
     ]}
 
-    ec_test!{ writing_needless_quoted, {
+    ec_test! { writing_needless_quoted, {
         MediaType::try_from("text/plain; a=\"abc\"")?
     } => ascii => [
         Text "text/plain",
@@ -436,7 +434,7 @@ mod test {
         Text " a=\"abc\""
     ]}
 
-    ec_test!{ writing_quoted, {
+    ec_test! { writing_quoted, {
         MediaType::try_from("text/plain; a=\"abc def\"")?
     } => ascii => [
         Text "text/plain",
@@ -446,7 +444,7 @@ mod test {
         Text " a=\"abc def\""
     ]}
 
-    ec_test!{ writing_quoted_with_escape, {
+    ec_test! { writing_quoted_with_escape, {
         MediaType::try_from("text/plain; a=\"abc\\ def\"")?
     } => ascii => [
         Text "text/plain",
@@ -456,7 +454,7 @@ mod test {
         Text " a=\"abc\\ def\""
     ]}
 
-    ec_test!{ writing_quoted_utf8, {
+    ec_test! { writing_quoted_utf8, {
         MediaType::try_from("text/plain; a=\"←→\"")?
     } => utf8 => [
         Text "text/plain",
@@ -466,7 +464,7 @@ mod test {
         Text " a=\"←→\""
     ]}
 
-    ec_test!{ #[ignore] writing_quoted_needed_encoding, {
+    ec_test! { #[ignore] writing_quoted_needed_encoding, {
         MediaType::try_from("text/plain; a=\"←→\"")?
     } => ascii => [
         Text "text/plain",
@@ -476,7 +474,7 @@ mod test {
         Text " a*=utf8\'\'%E2%86%90%E2%86%92"
     ]}
 
-    ec_test!{ writing_parts_simple, {
+    ec_test! { writing_parts_simple, {
         MediaType::try_from("text/plain; a*0=abc; a*1=\" def\"")?
     } => ascii => [
         Text "text/plain",
@@ -493,7 +491,7 @@ mod test {
     //TODO media type needs parts awareness
     // i.e. currently it would do a*1=\"↓\"" => "a*1*=utf-8''%E2%86%93" which is wrong
     // as it's not the first part and it does not know about parts
-    ec_test!{ #[ignore] writing_parts_needs_encoding_not_first, {
+    ec_test! { #[ignore] writing_parts_needs_encoding_not_first, {
         MediaType::try_from("text/plain; a*0=abc; a*1=\"↓\"")?
     } => ascii => [
         Text "text/plain",
@@ -506,8 +504,4 @@ mod test {
         MarkFWS,
         Text " a*1*=%E2%86%93"
     ]}
-
-
-
-
 }

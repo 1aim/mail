@@ -115,32 +115,32 @@
 //! ```
 
 extern crate media_type;
+extern crate quoted_string;
 #[doc(hidden)]
 pub extern crate soft_ascii_string;
-extern crate quoted_string;
 #[macro_use]
 extern crate failure;
 extern crate owning_ref;
 #[macro_use]
 extern crate nom;
 extern crate chrono;
+extern crate total_order_multi_map;
 #[cfg_attr(test, macro_use)]
 extern crate vec1;
-extern crate total_order_multi_map;
 //FIXME[rust/macros use private] remove pub re-export
 #[cfg_attr(test, macro_use)]
 #[doc(hidden)]
 pub extern crate mail_internals as __internals;
 
-#[cfg(feature="serde")]
+#[cfg(feature = "serde")]
 extern crate serde;
-#[cfg(all(test, feature="serde"))]
+#[cfg(all(test, feature = "serde"))]
 extern crate serde_test;
 
-#[cfg(all(test, not(feature="traceing")))]
+#[cfg(all(test, not(feature = "traceing")))]
 compile_error! { "testing needs feature `traceing` to be enabled" }
 
-#[cfg(all(feature="serde", not(feature="serde-impl")))]
+#[cfg(all(feature = "serde", not(feature = "serde-impl")))]
 compile_error! { "you need to enable \"serde-impl\" when you enable \"serde\"" }
 
 #[macro_use]
@@ -148,9 +148,9 @@ mod macros;
 mod name;
 #[macro_use]
 pub mod error;
-mod header;
 mod convert;
 pub mod data;
+mod header;
 #[macro_use]
 mod header_macro;
 #[macro_use]
@@ -158,12 +158,11 @@ pub mod map;
 pub mod header_components;
 pub mod headers;
 
-pub use self::name::*;
-pub use self::header::*;
 pub use self::convert::*;
+pub use self::header::*;
 pub use self::header_macro::*;
 pub use self::map::HeaderMap;
-
+pub use self::name::*;
 
 // I can not reexport a private think anymore, so I need to reexport the
 // extern crate and then make the normal name available, too

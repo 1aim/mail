@@ -1,13 +1,16 @@
 use std::{
+    mem,
     path::{Path, PathBuf},
-    mem
 };
 
-use mail_core::{IRI, Resource};
-use failure::{Fail, Context};
+use failure::{Context, Fail};
+use mail_core::{Resource, IRI};
 
 #[derive(Fail, Debug)]
-#[fail(display = "unsupported path, only paths with following constraint are allowed: {}", _0)]
+#[fail(
+    display = "unsupported path, only paths with following constraint are allowed: {}",
+    _0
+)]
 pub struct UnsupportedPathError(Context<&'static str>);
 
 impl UnsupportedPathError {
@@ -25,8 +28,10 @@ pub trait PathRebaseable {
     /// For example a implementor requiring rust string
     /// compatible paths might return a
     /// `Err(UnsupportedPathError::new("utf-8"))`.
-    fn rebase_to_include_base_dir(&mut self, base_dir: impl AsRef<Path>)
-        -> Result<(), UnsupportedPathError>;
+    fn rebase_to_include_base_dir(
+        &mut self,
+        base_dir: impl AsRef<Path>,
+    ) -> Result<(), UnsupportedPathError>;
 
     /// Removes the `base_dir` prefix.
     ///
@@ -36,14 +41,17 @@ pub trait PathRebaseable {
     /// For example a implementor requiring rust string
     /// compatible paths might return a
     /// `Err(UnsupportedPathError::new("utf-8"))`.
-    fn rebase_to_exclude_base_dir(&mut self, base_dir: impl AsRef<Path>)
-        -> Result<(), UnsupportedPathError>;
+    fn rebase_to_exclude_base_dir(
+        &mut self,
+        base_dir: impl AsRef<Path>,
+    ) -> Result<(), UnsupportedPathError>;
 }
 
 impl PathRebaseable for PathBuf {
-    fn rebase_to_include_base_dir(&mut self, base_dir: impl AsRef<Path>)
-        -> Result<(), UnsupportedPathError>
-    {
+    fn rebase_to_include_base_dir(
+        &mut self,
+        base_dir: impl AsRef<Path>,
+    ) -> Result<(), UnsupportedPathError> {
         let new_path;
         if self.is_relative() {
             new_path = base_dir.as_ref().join(&self);
@@ -54,9 +62,10 @@ impl PathRebaseable for PathBuf {
         Ok(())
     }
 
-    fn rebase_to_exclude_base_dir(&mut self, base_dir: impl AsRef<Path>)
-        -> Result<(), UnsupportedPathError>
-    {
+    fn rebase_to_exclude_base_dir(
+        &mut self,
+        base_dir: impl AsRef<Path>,
+    ) -> Result<(), UnsupportedPathError> {
         let new_path;
         if let Ok(path) = self.strip_prefix(base_dir) {
             new_path = path.to_owned();
@@ -69,9 +78,10 @@ impl PathRebaseable for PathBuf {
 }
 
 impl PathRebaseable for IRI {
-    fn rebase_to_include_base_dir(&mut self, base_dir: impl AsRef<Path>)
-        -> Result<(), UnsupportedPathError>
-    {
+    fn rebase_to_include_base_dir(
+        &mut self,
+        base_dir: impl AsRef<Path>,
+    ) -> Result<(), UnsupportedPathError> {
         if self.scheme() != "path" {
             return Ok(());
         }
@@ -85,7 +95,8 @@ impl PathRebaseable for IRI {
             }
         };
 
-        let new_tail = new_tail.to_str()
+        let new_tail = new_tail
+            .to_str()
             .ok_or_else(|| UnsupportedPathError::new("utf-8"))?;
 
         let new_iri = self.with_tail(new_tail);
@@ -93,9 +104,10 @@ impl PathRebaseable for IRI {
         Ok(())
     }
 
-    fn rebase_to_exclude_base_dir(&mut self, base_dir: impl AsRef<Path>)
-        -> Result<(), UnsupportedPathError>
-    {
+    fn rebase_to_exclude_base_dir(
+        &mut self,
+        base_dir: impl AsRef<Path>,
+    ) -> Result<(), UnsupportedPathError> {
         if self.scheme() != "path" {
             return Ok(());
         }
@@ -119,27 +131,26 @@ impl PathRebaseable for IRI {
 }
 
 impl PathRebaseable for Resource {
-    fn rebase_to_include_base_dir(&mut self, base_dir: impl AsRef<Path>)
-        -> Result<(), UnsupportedPathError>
-    {
+    fn rebase_to_include_base_dir(
+        &mut self,
+        base_dir: impl AsRef<Path>,
+    ) -> Result<(), UnsupportedPathError> {
         if let &mut Resource::Source(ref mut source) = self {
             source.iri.rebase_to_include_base_dir(base_dir)?;
         }
         Ok(())
     }
 
-    fn rebase_to_exclude_base_dir(&mut self, base_dir: impl AsRef<Path>)
-        -> Result<(), UnsupportedPathError>
-    {
+    fn rebase_to_exclude_base_dir(
+        &mut self,
+        base_dir: impl AsRef<Path>,
+    ) -> Result<(), UnsupportedPathError> {
         if let &mut Resource::Source(ref mut source) = self {
             source.iri.rebase_to_exclude_base_dir(base_dir)?;
         }
         Ok(())
     }
-
 }
-
-
 
 #[cfg(test)]
 mod test {
@@ -175,7 +186,7 @@ mod test {
         let mut resource = Resource::Source(Source {
             iri: "path:abc/def".parse().unwrap(),
             use_media_type: Default::default(),
-            use_file_name: Default::default()
+            use_file_name: Default::default(),
         });
 
         resource.rebase_to_include_base_dir("./abc").unwrap();
@@ -184,8 +195,10 @@ mod test {
         resource.rebase_to_exclude_base_dir("abc").unwrap();
         resource.rebase_to_include_base_dir("abc").unwrap();
 
-        if let Resource::Source(Source { iri, ..}) = resource {
+        if let Resource::Source(Source { iri, .. }) = resource {
             assert_eq!(iri.as_str(), "path:abc/abc/def");
-        } else { unreachable!() }
+        } else {
+            unreachable!()
+        }
     }
 }

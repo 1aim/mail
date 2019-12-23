@@ -1,54 +1,50 @@
 use soft_ascii_string::SoftAsciiStr;
 
+use internals::encoder::{EncodableInHeader, EncodingWriter};
 use internals::error::EncodingError;
-use internals::encoder::{EncodingWriter, EncodableInHeader};
 
-#[cfg(feature="serde")]
-use serde::{Serialize, Deserialize};
-
+#[cfg(feature = "serde")]
+use serde::{Deserialize, Serialize};
 
 /// The TransferEnecoding header component mainly used by the ContentTransferEncodingHeader.
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
-#[cfg_attr(feature="serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum TransferEncoding {
-    #[cfg_attr(feature="serde", serde(rename="7bit"))]
+    #[cfg_attr(feature = "serde", serde(rename = "7bit"))]
     _7Bit,
-    #[cfg_attr(feature="serde", serde(rename="8bit"))]
+    #[cfg_attr(feature = "serde", serde(rename = "8bit"))]
     _8Bit,
-    #[cfg_attr(feature="serde", serde(rename="binary"))]
+    #[cfg_attr(feature = "serde", serde(rename = "binary"))]
     Binary,
-    #[cfg_attr(feature="serde", serde(rename="quoted-printable"))]
+    #[cfg_attr(feature = "serde", serde(rename = "quoted-printable"))]
     QuotedPrintable,
-    #[cfg_attr(feature="serde", serde(rename="base64"))]
-    Base64
+    #[cfg_attr(feature = "serde", serde(rename = "base64"))]
+    Base64,
 }
 
 impl TransferEncoding {
-    pub fn repr(&self ) -> &SoftAsciiStr {
+    pub fn repr(&self) -> &SoftAsciiStr {
         use self::TransferEncoding::*;
         match *self {
             _7Bit => SoftAsciiStr::from_unchecked("7bit"),
             _8Bit => SoftAsciiStr::from_unchecked("8bit"),
-            Binary =>  SoftAsciiStr::from_unchecked("binary"),
+            Binary => SoftAsciiStr::from_unchecked("binary"),
             QuotedPrintable => SoftAsciiStr::from_unchecked("quoted-printable"),
-            Base64 =>  SoftAsciiStr::from_unchecked("base64"),
+            Base64 => SoftAsciiStr::from_unchecked("base64"),
         }
     }
 }
 
-
-impl EncodableInHeader for  TransferEncoding {
-
+impl EncodableInHeader for TransferEncoding {
     fn encode(&self, handle: &mut EncodingWriter) -> Result<(), EncodingError> {
-        handle.write_str( self.repr() )?;
-        Ok( () )
+        handle.write_str(self.repr())?;
+        Ok(())
     }
 
     fn boxed_clone(&self) -> Box<EncodableInHeader> {
         Box::new(self.clone())
     }
 }
-
 
 #[cfg(test)]
 mod test {
@@ -66,28 +62,28 @@ mod test {
         Text "8bit"
     ]}
 
-    ec_test!{binary, {
+    ec_test! {binary, {
         TransferEncoding::Binary
     } => ascii => [
         Text "binary"
     ]}
 
-    ec_test!{base64, {
+    ec_test! {base64, {
         TransferEncoding::Base64
     } => ascii => [
         Text "base64"
     ]}
 
-    ec_test!{quoted_printable, {
+    ec_test! {quoted_printable, {
         TransferEncoding::QuotedPrintable
     } => ascii => [
         Text "quoted-printable"
     ]}
 
-    #[cfg(feature="serde")]
+    #[cfg(feature = "serde")]
     mod serde {
-        use serde_test::{Token, assert_tokens};
         use super::TransferEncoding;
+        use serde_test::{assert_tokens, Token};
 
         macro_rules! serde_token_tests {
             ($([$lname:ident, $hname:ident, $s:tt]),*) => ($(
@@ -110,8 +106,5 @@ mod test {
             [quoted_printable, QuotedPrintable, "quoted-printable"],
             [base64, Base64, "base64"]
         }
-
     }
 }
-
-
