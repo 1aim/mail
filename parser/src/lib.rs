@@ -13,6 +13,7 @@ mod body;
 mod dateparse;
 mod error;
 mod util;
+mod header;
 
 pub mod parser;
 
