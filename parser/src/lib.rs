@@ -1,4 +1,4 @@
-extern crate failure;
+#[macro_use] extern crate failure;
 extern crate mail_core;
 extern crate mail_headers;
 extern crate serde;
@@ -11,7 +11,6 @@ extern crate quoted_printable;
 mod addrparse;
 mod body;
 mod dateparse;
-mod error;
 mod util;
 mod header;
 

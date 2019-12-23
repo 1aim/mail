@@ -1,5 +1,5 @@
+use failure::Fallible as Result;
 use charset::{decode_ascii, Charset};
-use crate::error::MailParseError;
 use crate::parser::ParsedContentType;
 
 /// Represents the body of an email (or mail subpart)
@@ -50,7 +50,7 @@ impl<'a> Body<'a> {
 
 /// Struct that holds the encoded body representation of the message (or message subpart).
 pub struct EncodedBody<'a> {
-    decoder: fn(&[u8]) -> Result<Vec<u8>, MailParseError>,
+    decoder: fn(&[u8]) -> Result<Vec<u8>>,
     ctype: &'a ParsedContentType,
     body: &'a [u8],
 }
@@ -67,7 +67,7 @@ impl<'a> EncodedBody<'a> {
     }
 
     /// Get the decoded body of the message (or message subpart).
-    pub fn get_decoded(&self) -> Result<Vec<u8>, MailParseError> {
+    pub fn get_decoded(&self) -> Result<Vec<u8>> {
         (self.decoder)(self.body)
     }
 
@@ -77,7 +77,7 @@ impl<'a> EncodedBody<'a> {
     /// (or "us-ascii" if the charset was missing or not recognized).
     /// This operation returns a valid result only if the decoded body
     /// has a text format.
-    pub fn get_decoded_as_string(&self) -> Result<String, MailParseError> {
+    pub fn get_decoded_as_string(&self) -> Result<String> {
         get_body_as_string(&self.get_decoded()?, &self.ctype)
     }
 }
@@ -103,7 +103,7 @@ impl<'a> TextBody<'a> {
     /// This function converts the body into a Rust UTF-8 string using the charset
     /// in the Content-Type
     /// (or "us-ascii" if the charset was missing or not recognized).
-    pub fn get_as_string(&self) -> Result<String, MailParseError> {
+    pub fn get_as_string(&self) -> Result<String> {
         get_body_as_string(self.body, &self.ctype)
     }
 }
@@ -126,7 +126,7 @@ impl<'a> BinaryBody<'a> {
     }
 }
 
-fn decode_base64(body: &[u8]) -> Result<Vec<u8>, MailParseError> {
+fn decode_base64(body: &[u8]) -> Result<Vec<u8>> {
     let cleaned = body
         .iter()
         .filter(|c| !c.is_ascii_whitespace())
@@ -135,14 +135,14 @@ fn decode_base64(body: &[u8]) -> Result<Vec<u8>, MailParseError> {
     Ok(base64::decode(&cleaned)?)
 }
 
-fn decode_quoted_printable(body: &[u8]) -> Result<Vec<u8>, MailParseError> {
+fn decode_quoted_printable(body: &[u8]) -> Result<Vec<u8>> {
     Ok(quoted_printable::decode(
         body,
         quoted_printable::ParseMode::Robust,
     )?)
 }
 
-fn get_body_as_string(body: &[u8], ctype: &ParsedContentType) -> Result<String, MailParseError> {
+fn get_body_as_string(body: &[u8], ctype: &ParsedContentType) -> Result<String> {
     let cow = if let Some(charset) = Charset::for_label(ctype.charset.as_bytes()) {
         let (cow, _, _) = charset.decode(body);
         cow
@@ -151,3 +151,4 @@ fn get_body_as_string(body: &[u8], ctype: &ParsedContentType) -> Result<String, 
     };
     Ok(cow.into_owned())
 }
+

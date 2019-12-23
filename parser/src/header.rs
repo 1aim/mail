@@ -1,8 +1,8 @@
+use failure::Fallible as Result;
 use charset::decode_latin1;
 use charset::Charset;
 
 use crate::util::*;
-use crate::error::*;
 
 /// A struct that represents a single header in the message.
 /// It holds slices into the raw byte array passed to parse_mail, and so the
@@ -17,7 +17,7 @@ pub struct MailHeader<'a> {
 
 impl<'a> MailHeader<'a> {
     /// Get the name of the header. Note that header names are case-insensitive.
-    pub fn get_key(&self) -> Result<String, MailParseError> {
+    pub fn get_key(&self) -> Result<String> {
         Ok(decode_latin1(self.key).into_owned())
     }
 
@@ -65,7 +65,7 @@ impl<'a> MailHeader<'a> {
     ///     assert_eq!(parsed.get_key().unwrap(), "Subject");
     ///     assert_eq!(parsed.get_value().unwrap(), "\u{a1}Hola, se\u{f1}or!");
     /// ```
-    pub fn get_value(&self) -> Result<String, MailParseError> {
+    pub fn get_value(&self) -> Result<String> {
         let mut result = String::new();
         let chars = decode_latin1(self.value);
         let mut lines = chars.lines();
@@ -154,11 +154,11 @@ enum HeaderParseState {
 ///     assert_eq!(parsed.get_key().unwrap(), "Subject");
 ///     assert_eq!(parsed.get_value().unwrap(), "Hello, sir, I am multiline");
 /// ```
-pub fn parse_header(raw_data: &[u8]) -> Result<(MailHeader, usize), MailParseError> {
+pub fn parse_header(raw_data: &[u8]) -> Result<(MailHeader, usize)> {
     let mut it = raw_data.iter();
     let mut ix = 0;
     let mut c = match it.next() {
-        None => return Err(MailParseError::Generic("Empty string provided")),
+        None => return Err(format_err!("Empty string provided")),
         Some(v) => *v,
     };
 
@@ -171,11 +171,7 @@ pub fn parse_header(raw_data: &[u8]) -> Result<(MailHeader, usize), MailParseErr
         match state {
             HeaderParseState::Initial => {
                 if c == b' ' {
-                    return Err(MailParseError::Generic(
-                        "Header cannot start with a space; it is \
-                         likely an overhanging line from a \
-                         previous header",
-                    ));
+                    return Err(format_err!("Header cannot start with a space; it is likely an overhanging line from a previous header"));
                 };
                 state = HeaderParseState::Key;
                 continue;
@@ -185,7 +181,7 @@ pub fn parse_header(raw_data: &[u8]) -> Result<(MailHeader, usize), MailParseErr
                     ix_key_end = Some(ix);
                     state = HeaderParseState::PreValue;
                 } else if c == b'\n' {
-                    return Err(MailParseError::Generic("Unexpected newline in header key"));
+                    return Err(format_err!("Unexpected newline in header key"));
                 }
             }
             HeaderParseState::PreValue => {
@@ -227,9 +223,7 @@ pub fn parse_header(raw_data: &[u8]) -> Result<(MailHeader, usize), MailParseErr
             ix,
         )),
 
-        None => Err(MailParseError::Generic(
-            "Unable to determine end of the header key component",
-        )),
+        None => Err(format_err!("Unable to determine end of the header key component")),
     }
 }
 
@@ -253,7 +247,7 @@ pub trait MailHeaderMap {
     ///         .unwrap().headers;
     ///     assert_eq!(headers.get_first_value("Subject").unwrap(), Some("Test".to_string()));
     /// ```
-    fn get_first_value(&self, key: &str) -> Result<Option<String>, MailParseError>;
+    fn get_first_value(&self, key: &str) -> Result<Option<String>>;
 
     /// Look through the list of headers and return the values of all headers
     /// matching the provided key. Returns an empty vector if no matching headers
@@ -272,11 +266,11 @@ pub trait MailHeaderMap {
     ///     assert_eq!(headers.get_all_values("Key").unwrap(),
     ///         vec!["Value1".to_string(), "Value2".to_string()]);
     /// ```
-    fn get_all_values(&self, key: &str) -> Result<Vec<String>, MailParseError>;
+    fn get_all_values(&self, key: &str) -> Result<Vec<String>>;
 }
 
 impl<'a> MailHeaderMap for [MailHeader<'a>] {
-    fn get_first_value(&self, key: &str) -> Result<Option<String>, MailParseError> {
+    fn get_first_value(&self, key: &str) -> Result<Option<String>> {
         for x in self {
             if x.get_key()?.eq_ignore_ascii_case(key) {
                 return x.get_value().map(Some);
@@ -285,7 +279,7 @@ impl<'a> MailHeaderMap for [MailHeader<'a>] {
         Ok(None)
     }
 
-    fn get_all_values(&self, key: &str) -> Result<Vec<String>, MailParseError> {
+    fn get_all_values(&self, key: &str) -> Result<Vec<String>> {
         let mut values: Vec<String> = Vec::new();
         for x in self {
             if x.get_key()?.eq_ignore_ascii_case(key) {
@@ -320,7 +314,7 @@ impl<'a> MailHeaderMap for [MailHeader<'a>] {
 ///     assert_eq!(headers[1].get_key().unwrap(), "From");
 ///     assert_eq!(headers.get_first_value("To").unwrap(), Some("you@yourself.com".to_string()));
 /// ```
-pub fn parse_headers(raw_data: &[u8]) -> Result<(Vec<MailHeader>, usize), MailParseError> {
+pub fn parse_headers(raw_data: &[u8]) -> Result<(Vec<MailHeader>, usize)> {
     let mut headers: Vec<MailHeader> = Vec::new();
     let mut ix = 0;
     loop {
@@ -334,10 +328,7 @@ pub fn parse_headers(raw_data: &[u8]) -> Result<(Vec<MailHeader>, usize), MailPa
                 ix += 2;
                 break;
             } else {
-                return Err(MailParseError::Generic(
-                    "Headers were followed by an unexpected lone \
-                     CR character!",
-                ));
+                return Err(format_err!("Headers were followed by an unexpected lone CR character!"));
             }
         }
         let (header, ix_next) = parse_header(&raw_data[ix..])?;

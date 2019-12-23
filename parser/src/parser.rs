@@ -1,11 +1,11 @@
 use std::collections::BTreeMap;
 
+use failure::Fallible as Result;
 use charset::decode_latin1;
 use charset::Charset;
 
 use crate::body::Body;
 use crate::util::*;
-use crate::error::*;
 use crate::header::*;
 
 /// A struct to hold a more structured representation of the Content-Type header.
@@ -196,13 +196,11 @@ impl<'a> ParsedMail<'a> {
     ///         .unwrap();
     ///     assert_eq!(p.get_body().unwrap(), "This is the body");
     /// ```
-    pub fn get_body(&self) -> Result<String, MailParseError> {
+    pub fn get_body(&self) -> Result<String> {
         match self.get_body_encoded()? {
             Body::Base64(body) | Body::QuotedPrintable(body) => body.get_decoded_as_string(),
             Body::SevenBit(body) | Body::EightBit(body) => body.get_as_string(),
-            Body::Binary(_) => Err(MailParseError::Generic(
-                "Message body of type binary body cannot be parsed into a string",
-            )),
+            Body::Binary(_) => Err(format_err!("Message body of type binary body cannot be parsed into a string")),
         }
     }
 
@@ -220,7 +218,7 @@ impl<'a> ParsedMail<'a> {
     ///         .unwrap();
     ///     assert_eq!(p.get_body_raw().unwrap(), b"This is the body");
     /// ```
-    pub fn get_body_raw(&self) -> Result<Vec<u8>, MailParseError> {
+    pub fn get_body_raw(&self) -> Result<Vec<u8>> {
         match self.get_body_encoded()? {
             Body::Base64(body) | Body::QuotedPrintable(body) => body.get_decoded(),
             Body::SevenBit(body) | Body::EightBit(body) => Ok(Vec::<u8>::from(body.get_raw())),
@@ -267,7 +265,7 @@ impl<'a> ParsedMail<'a> {
     ///         }
     ///     }
     /// ```
-    pub fn get_body_encoded(&'a self) -> Result<Body<'a>, MailParseError> {
+    pub fn get_body_encoded(&'a self) -> Result<Body<'a>> {
         let transfer_encoding = self
             .headers
             .get_first_value("Content-Transfer-Encoding")?
@@ -281,7 +279,7 @@ impl<'a> ParsedMail<'a> {
     /// is used, if there are multiple. See the `parse_content_disposition`
     /// method documentation for more details on the semantics of the
     /// returned object.
-    pub fn get_content_disposition(&self) -> Result<ParsedContentDisposition, MailParseError> {
+    pub fn get_content_disposition(&self) -> Result<ParsedContentDisposition> {
         let disposition = self
             .headers
             .get_first_value("Content-Disposition")?
@@ -328,7 +326,7 @@ impl<'a> ParsedMail<'a> {
 ///     assert!(parsed.subparts[1].get_body().unwrap().starts_with("<html>"));
 ///     assert_eq!(dateparse(parsed.headers.get_first_value("Date").unwrap().unwrap().as_str()).unwrap(), 1475417182);
 /// ```
-pub fn parse_mail(raw_data: &[u8]) -> Result<ParsedMail, MailParseError> {
+pub fn parse_mail(raw_data: &[u8]) -> Result<ParsedMail> {
     let (headers, ix_body) = parse_headers(raw_data)?;
     let ctype = headers
         .get_first_value("Content-Type")?
@@ -655,14 +653,8 @@ mod tests {
             Some("CRLF".to_string())
         );
 
-        assert_match!(
-            parse_headers(b"Bad\nKey").unwrap_err(),
-            MailParseError::Generic(_)
-        );
-        assert_match!(
-            parse_headers(b"K:V\nBad\nKey").unwrap_err(),
-            MailParseError::Generic(_)
-        );
+        assert!(parse_headers(b"Bad\nKey").is_err());
+        assert!(parse_headers(b"K:V\nBad\nKey").is_err());
     }
 
     #[test]
