@@ -84,7 +84,7 @@ mod test {
     ec_test!{ date_time, {
         DateTime::test_time( 45 )
     } => ascii => [
-        Text "Tue,  6 Aug 2013 04:11:45 +0000"
+        Text "Tue, 06 Aug 2013 04:11:45 +0000"
     ]}
 
 }
