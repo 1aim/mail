@@ -42,7 +42,8 @@ impl Default for ParsedContentType {
 ///
 /// # Examples
 /// ```
-///     use mailparse::{parse_header, parse_content_type};
+///     use header::parse_header;
+///     use parser::parse_content_type;
 ///     let (parsed, _) = parse_header(
 ///             b"Content-Type: text/html; charset=foo; boundary=\"quotes_are_removed\"")
 ///         .unwrap();
@@ -53,7 +54,8 @@ impl Default for ParsedContentType {
 ///     assert_eq!(ctype.params.get("charset"), Some(&"foo".to_string()));
 /// ```
 /// ```
-///     use mailparse::{parse_header, parse_content_type};
+///     use header::parse_header;
+///     use parser::parse_content_type;
 ///     let (parsed, _) = parse_header(b"Content-Type: bogus").unwrap();
 ///     let ctype = parse_content_type(&parsed.get_value().unwrap());
 ///     assert_eq!(ctype.mimetype, "bogus");
@@ -62,7 +64,8 @@ impl Default for ParsedContentType {
 ///     assert_eq!(ctype.params.get("charset"), None);
 /// ```
 /// ```
-///     use mailparse::{parse_header, parse_content_type};
+///     use header::parse_header;
+///     use parser::parse_content_type;
 ///     let (parsed, _) = parse_header(br#"Content-Type: application/octet-stream;name="=?utf8?B?6L+O5ai255m95a+M576O?=";charset="utf8""#).unwrap();
 ///     let ctype = parse_content_type(&parsed.get_value().unwrap());
 ///     assert_eq!(ctype.mimetype, "application/octet-stream");
@@ -141,7 +144,8 @@ pub struct ParsedContentDisposition {
 ///
 /// # Examples
 /// ```
-///     use mailparse::{parse_header, parse_content_disposition, DispositionType};
+///     use header::parse_header;
+///     use parser::{parse_content_disposition, DispositionType};
 ///     let (parsed, _) = parse_header(
 ///             b"Content-Disposition: attachment; filename=\"yummy dummy\"")
 ///         .unwrap();
@@ -184,7 +188,7 @@ impl<'a> ParsedMail<'a> {
     ///
     /// # Examples
     /// ```
-    ///     use mailparse::parse_mail;
+    ///     use parser::parse_mail;
     ///     let p = parse_mail(concat!(
     ///             "Subject: test\n",
     ///             "\n",
@@ -208,7 +212,7 @@ impl<'a> ParsedMail<'a> {
     ///
     /// # Examples
     /// ```
-    ///     use mailparse::parse_mail;
+    ///     use parser::parse_mail;
     ///     let p = parse_mail(concat!(
     ///             "Subject: test\n",
     ///             "\n",
@@ -230,8 +234,8 @@ impl<'a> ParsedMail<'a> {
     ///
     /// # Examples
     /// ```
-    ///     use mailparse::parse_mail;
-    ///     use mailparse::body::Body;
+    ///     use parser::parse_mail;
+    ///     use body::Body;
     ///
     ///     let mail = parse_mail(b"Content-Transfer-Encoding: base64\r\n\r\naGVsbG 8gd\r\n29ybGQ=").unwrap();
     ///
@@ -294,7 +298,7 @@ impl<'a> ParsedMail<'a> {
 ///
 /// # Examples
 /// ```
-///     use mailparse::*;
+///     use parser::*;
 ///     let parsed = parse_mail(concat!(
 ///             "Subject: This is a test email\n",
 ///             "Content-Type: multipart/alternative; boundary=foobar\n",
@@ -408,6 +412,7 @@ fn parse_param_content(content: &str) -> ParamContent {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::dateparse::dateparse;
 
     macro_rules! assert_match {
         ( $x:expr, $p:pat ) => {

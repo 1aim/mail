@@ -60,7 +60,7 @@ impl<'a> MailHeader<'a> {
     ///
     /// # Examples
     /// ```
-    ///     use mailparse::parse_header;
+    ///     use header::parse_header;
     ///     let (parsed, _) = parse_header(b"Subject: =?iso-8859-1?Q?=A1Hola,_se=F1or!?=").unwrap();
     ///     assert_eq!(parsed.get_key().unwrap(), "Subject");
     ///     assert_eq!(parsed.get_value().unwrap(), "\u{a1}Hola, se\u{f1}or!");
@@ -145,7 +145,7 @@ enum HeaderParseState {
 ///
 /// # Examples
 /// ```
-///     use mailparse::parse_header;
+///     use header::parse_header;
 ///     let (parsed, _) = parse_header(concat!(
 ///             "Subject: Hello, sir,\n",
 ///             "   I am multiline\n",
@@ -244,7 +244,8 @@ pub trait MailHeaderMap {
     ///
     /// # Examples
     /// ```
-    ///     use mailparse::{parse_mail, MailHeaderMap};
+    ///     use parser::parse_mail;
+    ///     use header::MailHeaderMap;
     ///     let headers = parse_mail(concat!(
     ///             "Subject: Test\n",
     ///             "\n",
@@ -262,7 +263,8 @@ pub trait MailHeaderMap {
     ///
     /// # Examples
     /// ```
-    ///     use mailparse::{parse_mail, MailHeaderMap};
+    ///     use parser::parse_mail;
+    ///     use header::MailHeaderMap;
     ///     let headers = parse_mail(concat!(
     ///             "Key: Value1\n",
     ///             "Key: Value2").as_bytes())
@@ -308,7 +310,8 @@ impl<'a> MailHeaderMap for [MailHeader<'a>] {
 ///
 /// # Examples
 /// ```
-///     use mailparse::{parse_headers, MailHeaderMap};
+///     use header::parse_headers;
+///     use header::MailHeaderMap;
 ///     let (headers, _) = parse_headers(concat!(
 ///             "Subject: Test\n",
 ///             "From: me@myself.com\n",

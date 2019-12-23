@@ -168,7 +168,7 @@ impl MailAddrList {
 ///
 /// # Examples
 /// ```
-///     use mailparse::{addrparse, MailAddr, SingleInfo};
+///     use addrparse::{addrparse, MailAddr, SingleInfo};
 ///     match &addrparse("John Doe <john@doe.com>").unwrap()[0] {
 ///         MailAddr::Single(info) => {
 ///             assert_eq!(info.display_name, Some("John Doe".to_string()));

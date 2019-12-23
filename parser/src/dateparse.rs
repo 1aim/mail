@@ -70,7 +70,7 @@ fn seconds_to_date(year: i64, month: i64, day: i64) -> i64 {
 ///
 /// # Examples
 /// ```
-///     use mailparse::dateparse;
+///     use dateparse::dateparse;
 ///     assert_eq!(dateparse("Sun, 02 Oct 2016 07:06:22 -0700 (PDT)").unwrap(), 1475417182);
 /// ```
 pub fn dateparse(date: &str) -> Result<i64, &'static str> {
