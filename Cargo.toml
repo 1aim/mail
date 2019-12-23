@@ -5,7 +5,8 @@ members = [
     "headers",
     "internals",
     "smtp",
-    "template"
+    "template",
+    "parser"
 ]
 
 

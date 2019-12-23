@@ -1,0 +1,17 @@
+[package]
+name         = "mail-parser"
+version      = "0.6.11"
+description  = "[mail-parser] parser for the Mail type"
+authors      = ["Matthias Beyer <mail@beyermatthias.de>"]
+
+license      = "MIT OR Apache-2.0"
+readme       = "./README.md"
+repository   = "https://github.com/dac-gmbh/mail"
+edition      = "2018"
+
+categories   = []
+keywords     = ["mail", "rfc5322", "mime", "smtp", "template"]
+autoexamples = true
+
+
+[dependencies]
