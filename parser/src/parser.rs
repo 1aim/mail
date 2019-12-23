@@ -926,47 +926,6 @@ mod tests {
     }
 
     #[test]
-    fn test_body_content_encoding_with_multipart() {
-        let mail_filepath = "./tests/files/test_email_01.txt";
-        let mail = std::fs::read(mail_filepath)
-            .expect(&format!("Unable to open the file [{}]", mail_filepath));
-        let mail = parse_mail(&mail).unwrap();
-
-        let subpart_0 = mail.subparts.get(0).unwrap();
-        match subpart_0.get_body_encoded().unwrap() {
-            Body::SevenBit(body) => {
-                assert_eq!(
-                    body.get_as_string().unwrap().trim(),
-                    "<html>Test with attachments</html>"
-                );
-            }
-            _ => assert!(false),
-        };
-
-        let subpart_1 = mail.subparts.get(1).unwrap();
-        match subpart_1.get_body_encoded().unwrap() {
-            Body::Base64(body) => {
-                let pdf_filepath = "./tests/files/test_email_01_sample.pdf";
-                let original_pdf = std::fs::read(pdf_filepath)
-                    .expect(&format!("Unable to open the file [{}]", pdf_filepath));
-                assert_eq!(body.get_decoded().unwrap(), original_pdf);
-            }
-            _ => assert!(false),
-        };
-
-        let subpart_2 = mail.subparts.get(2).unwrap();
-        match subpart_2.get_body_encoded().unwrap() {
-            Body::Base64(body) => {
-                assert_eq!(
-                    body.get_decoded_as_string().unwrap(),
-                    "txt file context for email collector\n1234567890987654321\n"
-                );
-            }
-            _ => assert!(false),
-        };
-    }
-
-    #[test]
     fn test_fuzzer_testcase() {
         const INPUT: &'static str = "U3ViamVjdDplcy1UeXBlOiBtdW50ZW50LVV5cGU6IW11bAAAAAAAAAAAamVjdDplcy1UeXBlOiBtdW50ZW50LVV5cGU6IG11bAAAAAAAAAAAAAAAAABTTUFZdWJqZf86OiP/dCBTdWJqZWN0Ol8KRGF0ZTog/////////////////////wAAAAAAAAAAAHQgYnJmAHQgYnJmZXItRW5jeXBlOnY9NmU3OjA2OgAAAAAAAAAAAAAAADEAAAAAAP/8mAAAAAAAAAAA+f///wAAAAAAAP8AAAAAAAAAAAAAAAAAAAAAAAAAPT0/PzEAAAEAAA==";
 
