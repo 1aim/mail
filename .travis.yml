@@ -9,11 +9,18 @@ rust:
   - stable
   - beta
 
+addons:
+  apt:
+    packages:
+    - pkg-config
+    - cmake
+    - openssl
+
 before_script:
   - rustup component add clippy
 
 script:
   - cargo clippy --all-targets --all-features -- -D warnings
-  - cargo build
-  - cargo test
+  - cargo build --all-features --all
+  - cargo test --all-features --all
 
