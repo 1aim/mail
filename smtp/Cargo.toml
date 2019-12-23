@@ -8,7 +8,7 @@ documentation = "https://docs.rs/mail-smtp"
 keywords = ["mail-api"]
 license = "MIT OR Apache-2.0"
 readme = "./README.md"
-repository = "https://github.com/1aim/mail-smtp"
+repository = "https://github.com/dac-gmbh/mail-smtp"
 
 [dependencies]
 futures = "0.1"
