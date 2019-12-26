@@ -35,11 +35,11 @@ required-features = ["smtp"]
 features = [ "handlebars", "smtp", "serde-impl" ]
 
 [dependencies]
-mail-internals = "0.2.3"
-mail-headers =  "0.6.6"
-mail-core =  "0.6.2"
-mail-template = "0.6.1"
-mail-smtp =  { version="0.2.2", optional=true }
+mail-internals = { version = "0.2.3", path = "../internals" }
+mail-headers   = { version = "0.6.6", path = "../headers" }
+mail-core      = { version = "0.6.2", path = "../core" }
+mail-template  = { version = "0.6.1", path = "../template" }
+mail-smtp      = { version = "0.2.2", path = "../smtp", optional = true }
 
 [dev-dependencies]
 rpassword = "2.0.0"
