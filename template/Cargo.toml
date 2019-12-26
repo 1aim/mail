@@ -18,9 +18,9 @@ handlebars-bindings = ["handlebars"]
 features = [ "handlebars-bindings" ]
 
 [dependencies]
-mail-core = { version="0.6.2", features=["serde-impl"] }
-mail-internals = "0.2.3"
-mail-headers = { version="0.6.6", features=["serde-impl"] }
+mail-core      = { version = "0.6.2", path = "../core", features    = ["serde-impl"] }
+mail-internals = { version = "0.2.3", path = "../internals" }
+mail-headers   = { version = "0.6.6", path = "../headers", features = ["serde-impl"] }
 
 failure = "0.1.1"
 futures = "0.1.14"

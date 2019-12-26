@@ -20,8 +20,8 @@ test-utils = ["default", "lazy_static"]
 features = [ "serde-impl", "default" ]
 
 [dependencies]
-mail-internals = "0.2.3"
-mail-headers = "0.6.6"
+mail-internals = { version = "0.2.3", path = "../internals" }
+mail-headers = { version = "0.6.6", path = "../headers" }
 failure = "0.1.2"
 futures = "0.1.24"
 log = "0.3.8"

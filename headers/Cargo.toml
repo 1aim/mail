@@ -17,7 +17,7 @@ traceing = [ "mail-internals/traceing" ]
 features = [ "serde-impl" ]
 
 [dependencies]
-mail-internals = "0.2.3"
+mail-internals = { version = "0.2.3", path = "../internals" }
 failure = "0.1"
 owning_ref = "0.4"
 nom = "3.1.0"

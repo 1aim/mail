@@ -11,11 +11,12 @@ readme = "./README.md"
 repository = "https://github.com/1aim/mail-smtp"
 
 [dependencies]
+mail-core      = { version = "0.6.2", path = "../core" }
+mail-headers   = { version = "0.6.6", path = "../headers" }
+mail-internals = { version = "0.2.3", path = "../internals" }
+
 futures = "0.1"
 failure = "0.1.5"
-mail-core = "0.6.2"
-mail-headers = "0.6.6"
-mail-internals = "0.2.3"
 new-tokio-smtp = "0.8.1"
 
 [features]
@@ -24,4 +25,4 @@ extended-api = []
 
 
 [dev-dependencies]
-mail-core = { version="0.6.0", features=["test-utils"] }
+mail-core = { version="0.6.0", path = "../core", features=["test-utils"] }
