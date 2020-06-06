@@ -1,6 +1,6 @@
 [package]
 name = "mail"
-version = "0.6.12"
+version = "0.7.0"
 authors = ["Philipp Korber <p.korber@dac.eu>"]
 categories = []
 keywords = ["mail", "rfc5322", "mime", "smtp", "template"]
@@ -39,7 +39,7 @@ mail-internals = "0.2.3"
 mail-headers =  "0.6.6"
 mail-core =  "0.6.2"
 mail-template = "0.6.1"
-mail-smtp =  { version="0.2.2", optional=true }
+mail-smtp =  { version="0.3.0", optional=true }
 
 [dev-dependencies]
 rpassword = "2.0.0"
