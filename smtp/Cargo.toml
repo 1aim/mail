@@ -1,7 +1,7 @@
 [package]
 authors = ["Philipp Korber <p.korber@1aim.com>"]
 name = "mail-smtp"
-version = "0.2.2"
+version = "0.3.0"
 categories = []
 description = "[mail/smtp] combines mail-core with new-tokio-smtp"
 documentation = "https://docs.rs/mail-smtp"
@@ -16,7 +16,7 @@ failure = "0.1.5"
 mail-core = "0.6.2"
 mail-headers = "0.6.6"
 mail-internals = "0.2.3"
-new-tokio-smtp = "0.8.1"
+new-tokio-smtp = "0.9.0"
 
 [features]
 test-with-traceing = ["mail-internals/traceing"]
