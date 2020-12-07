@@ -8,7 +8,7 @@ categories = []
 license = "MIT OR Apache-2.0"
 readme = "./README.md"
 documentation = "https://docs.rs/mail-core"
-repository = "https://github.com/1aim/mail-core"
+repository = "https://github.com/dac-gmbh/mail-core"
 
 [features]
 serde-impl = ["serde", "mail-headers/serde-impl"]

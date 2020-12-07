@@ -14,7 +14,7 @@ Functionality steming from following crates is re-exported:
 - `mail-headers` provides implementations for the headers of the mail.
   This also includes a number of header components which appear in mail
   header bodies but are also re-used in other placed (e.g. `MediaType`
-  stemming from the `Content-Type header or `Domain`).
+  stemming from the `Content-Type` header or `Domain`).
 - `mail-smtp` bindings to `new-tokio-smtp` to  make it easier to send
   mails over smtp. This also includes functionality to automatically
   derive the _smtp_ sender/receiver from the mail if no sender/receiver
