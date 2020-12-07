@@ -177,7 +177,7 @@ pub struct Mail {
     body: MailBody,
 }
 
-/// A type which either represents a single body, or multiple modies.
+/// A type which either represents a single body, or multiple bodies.
 ///
 /// Note that you could have a mime multipart body just containing a
 /// single body _and_ it being semantically important to be this way,
