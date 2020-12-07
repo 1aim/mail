@@ -1,19 +1,18 @@
 use std::{
-    path::{Path, PathBuf},
+    env, io,
     ops::{Deref, DerefMut},
-    env, io
+    path::{Path, PathBuf},
 };
 
 use serde::{
+    de::{Deserialize, Deserializer},
     ser::{Serialize, Serializer},
-    de::{Deserialize, Deserializer}
 };
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct CwdBaseDir(PathBuf);
 
 impl CwdBaseDir {
-
     /// Creates a new `CwdBaseDir` instance containing exactly the given path.
     pub fn new_unchanged(path: PathBuf) -> Self {
         CwdBaseDir(path)
@@ -33,16 +32,16 @@ impl CwdBaseDir {
     ///
     /// As getting the CWD can fail this function can fail with a I/O Error, too.
     pub fn from_path<P>(path: P) -> Result<Self, io::Error>
-        where P: AsRef<Path> + Into<PathBuf>
+    where
+        P: AsRef<Path> + Into<PathBuf>,
     {
-        let path =
-            if path.as_ref().is_absolute() {
-                path.into()
-            } else {
-                let mut cwd = env::current_dir()?;
-                cwd.push(path.as_ref());
-                cwd
-            };
+        let path = if path.as_ref().is_absolute() {
+            path.into()
+        } else {
+            let mut cwd = env::current_dir()?;
+            cwd.push(path.as_ref());
+            cwd
+        };
 
         Ok(CwdBaseDir(path))
     }
@@ -64,9 +63,7 @@ impl CwdBaseDir {
     pub fn to_base_path(&self) -> Result<&Path, io::Error> {
         let cwd = env::current_dir()?;
         self.strip_prefix(&cwd)
-            .or_else(|_err_does_not_has_that_prefix| {
-                Ok(&self)
-            })
+            .or_else(|_err_does_not_has_that_prefix| Ok(&self))
     }
 
     /// Turns this instance into the `PathBuf` it dereferences to.
@@ -96,31 +93,28 @@ impl AsRef<Path> for CwdBaseDir {
     }
 }
 
-
-
 impl<'de> Deserialize<'de> for CwdBaseDir {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-        where D: Deserializer<'de>
+    where
+        D: Deserializer<'de>,
     {
         use serde::de::Error;
         let path_buf = PathBuf::deserialize(deserializer)?;
-        Self::from_path(path_buf)
-            .map_err(|err| D::Error::custom(err))
+        Self::from_path(path_buf).map_err(|err| D::Error::custom(err))
     }
 }
 
 impl Serialize for CwdBaseDir {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-        where S: Serializer,
+    where
+        S: Serializer,
     {
         use serde::ser::Error;
-        let path = self.to_base_path()
-            .map_err(|err| S::Error::custom(err))?;
+        let path = self.to_base_path().map_err(|err| S::Error::custom(err))?;
 
         path.serialize(serializer)
     }
 }
-
 
 #[cfg(test)]
 mod tests {

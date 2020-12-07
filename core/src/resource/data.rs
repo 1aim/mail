@@ -1,25 +1,14 @@
 use std::{
-    sync::Arc,
     default::Default,
-    ops::{Deref, DerefMut}
+    ops::{Deref, DerefMut},
+    sync::Arc,
 };
 
-#[cfg(feature="serde")]
-use serde::{
-    Serialize, Deserialize,
-    ser::{Serializer},
-    de::{Deserializer}
-};
+#[cfg(feature = "serde")]
+use serde::{de::Deserializer, ser::Serializer, Deserialize, Serialize};
 
+use headers::header_components::{ContentId, FileMeta, MediaType, TransferEncoding};
 use internals::bind::{base64, quoted_printable};
-use headers::header_components::{
-    MediaType,
-    FileMeta,
-    TransferEncoding,
-    ContentId
-};
-
-
 
 /// POD type containing FileMeta, Content-Type and Content-Id
 ///
@@ -38,17 +27,17 @@ use headers::header_components::{
 /// be used for some caching and similar but that plays hardly any
 /// role any more, except maybe for "external" mail bodies.
 #[derive(Debug, Clone)]
-#[cfg_attr(feature="serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct Metadata {
     /// File meta like file name or file read time.
-    #[cfg_attr(feature="serde", serde(flatten))]
+    #[cfg_attr(feature = "serde", serde(flatten))]
     pub file_meta: FileMeta,
 
     /// The media type of the data.
     pub media_type: MediaType,
 
     /// The content id associated with the data.
-    pub content_id: ContentId
+    pub content_id: ContentId,
 }
 
 impl Deref for Metadata {
@@ -80,26 +69,21 @@ impl DerefMut for Metadata {
 /// `Data` is made to be cheap to clone and share.
 /// For this it uses `Arc` internally.
 #[derive(Debug, Clone)]
-#[cfg_attr(feature="serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct Data {
-    #[cfg_attr(feature="serde", serde(with="arc_buffer_serde"))]
+    #[cfg_attr(feature = "serde", serde(with = "arc_buffer_serde"))]
     buffer: Arc<[u8]>,
-    #[cfg_attr(feature="serde", serde(flatten))]
-    #[cfg_attr(feature="serde", serde(with="arc_serde"))]
-    meta: Arc<Metadata>
+    #[cfg_attr(feature = "serde", serde(flatten))]
+    #[cfg_attr(feature = "serde", serde(with = "arc_serde"))]
+    meta: Arc<Metadata>,
 }
 
-
 impl Data {
-
     /// Create a new data instance.
-    pub fn new(
-        buffer: impl Into<Arc<[u8]>>,
-        meta: impl Into<Arc<Metadata>>
-    ) -> Self {
+    pub fn new(buffer: impl Into<Arc<[u8]>>, meta: impl Into<Arc<Metadata>>) -> Self {
         Data {
             buffer: buffer.into(),
-            meta: meta.into()
+            meta: meta.into(),
         }
     }
 
@@ -109,7 +93,7 @@ impl Data {
         let meta = Metadata {
             file_meta: Default::default(),
             media_type: MediaType::parse("text/plain; charset=utf-8").unwrap(),
-            content_id: cid
+            content_id: cid,
         };
         Self::new(buf, meta)
     }
@@ -149,10 +133,7 @@ impl Data {
     /// This functions expect a boundary pool and will remove all boundaries
     /// which do appear in the encoded representation of the data.
     #[inline(always)]
-    pub fn transfer_encode(
-        &self,
-        encoding_hint: TransferEncodingHint,
-    ) -> EncData {
+    pub fn transfer_encode(&self, encoding_hint: TransferEncodingHint) -> EncData {
         // delegated to free function at end of file for
         // readability
         transfer_encode(self, encoding_hint)
@@ -166,18 +147,17 @@ impl Data {
 /// `Data` is made to be cheap to clone and share.
 /// For this it uses `Arc` internally.
 #[derive(Debug, Clone)]
-#[cfg_attr(feature="serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct EncData {
-    #[cfg_attr(feature="serde", serde(with="arc_buffer_serde"))]
+    #[cfg_attr(feature = "serde", serde(with = "arc_buffer_serde"))]
     buffer: Arc<[u8]>,
-    #[cfg_attr(feature="serde", serde(flatten))]
-    #[cfg_attr(feature="serde", serde(with="arc_serde"))]
+    #[cfg_attr(feature = "serde", serde(flatten))]
+    #[cfg_attr(feature = "serde", serde(with = "arc_serde"))]
     meta: Arc<Metadata>,
-    encoding: TransferEncoding
+    encoding: TransferEncoding,
 }
 
 impl EncData {
-
     /// Create a new instance from transfer encoded data
     /// as well as metadata and the encoding used to transfer
     /// encode the data.
@@ -188,12 +168,12 @@ impl EncData {
     pub(crate) fn new(
         buffer: impl Into<Arc<[u8]>>,
         meta: impl Into<Arc<Metadata>>,
-        encoding: TransferEncoding
+        encoding: TransferEncoding,
     ) -> Self {
         EncData {
             buffer: buffer.into(),
             meta: meta.into(),
-            encoding
+            encoding,
         }
     }
 
@@ -216,7 +196,6 @@ impl EncData {
     pub fn media_type(&self) -> &MediaType {
         &self.meta.media_type
     }
-
 
     /// Access the transfer encoding used to encode the buffer.
     pub fn encoding(&self) -> TransferEncoding {
@@ -243,7 +222,7 @@ impl EncData {
 
 /// Hint to change how data should be transfer encoded.
 #[derive(Debug, PartialEq)]
-#[cfg_attr(feature="serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum TransferEncodingHint {
     /// Use Base64 encoding.
     UseBase64,
@@ -258,13 +237,12 @@ pub enum TransferEncodingHint {
     // /// Note: This is the default until I'm more sure about the whole thing
     // /// with puthing things in unecoded.
     // DoNotUseNoEncoding,
-
     /// No hint for transfer encoding.
     NoHint,
 
-    #[cfg_attr(feature="serde", serde(skip))]
+    #[cfg_attr(feature = "serde", serde(skip))]
     #[doc(hidden)]
-    __NonExhaustive { }
+    __NonExhaustive {},
 }
 
 impl Default for TransferEncodingHint {
@@ -283,67 +261,71 @@ impl Default for TransferEncodingHint {
 ///
 /// Panics if TransferEncodingHint::__NonExhaustive
 /// is passed to the function.
-fn transfer_encode(
-    data: &Data,
-    encoding_hint: TransferEncodingHint,
-) -> EncData {
+fn transfer_encode(data: &Data, encoding_hint: TransferEncodingHint) -> EncData {
     use self::TransferEncodingHint::*;
 
     match encoding_hint {
         UseQuotedPrintable => tenc_quoted_printable(data),
         UseBase64 | NoHint => tenc_base64(data),
-        __NonExhaustive { .. } => panic!("__NonExhaustive encoding should not be passed to any place")
+        __NonExhaustive { .. } => {
+            panic!("__NonExhaustive encoding should not be passed to any place")
+        }
     }
 }
 
 fn tenc_base64(data: &Data) -> EncData {
-    let enc_data = base64::normal_encode(data.buffer())
-        .into_bytes();
+    let enc_data = base64::normal_encode(data.buffer()).into_bytes();
 
-    EncData::new(enc_data, data.metadata().clone(),
-        TransferEncoding::Base64)
+    EncData::new(enc_data, data.metadata().clone(), TransferEncoding::Base64)
 }
 
 fn tenc_quoted_printable(data: &Data) -> EncData {
-    let enc_data = quoted_printable::normal_encode(data.buffer())
-        .into_bytes();
+    let enc_data = quoted_printable::normal_encode(data.buffer()).into_bytes();
 
-    EncData::new(enc_data, data.metadata().clone(),
-        TransferEncoding::QuotedPrintable)
+    EncData::new(
+        enc_data,
+        data.metadata().clone(),
+        TransferEncoding::QuotedPrintable,
+    )
 }
 
-
-#[cfg(feature="serde")]
+#[cfg(feature = "serde")]
 mod arc_buffer_serde {
     use super::*;
 
     pub(crate) fn deserialize<'de, D>(deserializer: D) -> Result<Arc<[u8]>, D::Error>
-        where D: Deserializer<'de>
+    where
+        D: Deserializer<'de>,
     {
         let bytes = <Vec<u8>>::deserialize(deserializer)?;
         Ok(bytes.into())
     }
 
     pub(crate) fn serialize<S>(data: &Arc<[u8]>, serializer: S) -> Result<S::Ok, S::Error>
-        where S: Serializer
+    where
+        S: Serializer,
     {
         serializer.serialize_bytes(data)
     }
 }
 
-#[cfg(feature="serde")]
+#[cfg(feature = "serde")]
 mod arc_serde {
     use super::*;
 
     pub(crate) fn deserialize<'de, OUT, D>(deserializer: D) -> Result<Arc<OUT>, D::Error>
-        where D: Deserializer<'de>, OUT: Deserialize<'de>
+    where
+        D: Deserializer<'de>,
+        OUT: Deserialize<'de>,
     {
         let value = OUT::deserialize(deserializer)?;
         Ok(Arc::new(value))
     }
 
     pub(crate) fn serialize<S, IN>(data: &Arc<IN>, serializer: S) -> Result<S::Ok, S::Error>
-        where S: Serializer, IN: Serialize
+    where
+        S: Serializer,
+        IN: Serialize,
     {
         IN::serialize(&**data, serializer)
     }

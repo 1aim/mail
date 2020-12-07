@@ -1,14 +1,9 @@
+use failure::Error;
 use hbs;
 use serde::Serialize;
-use failure::Error;
-
 
 use super::{
-    TemplateEngine,
-    TemplateEngineCanHandleData,
-    BodyTemplate,
-    AdditionalCIds,
-    serde_impl
+    serde_impl, AdditionalCIds, BodyTemplate, TemplateEngine, TemplateEngineCanHandleData,
 };
 
 //TODO[FEAT] add custom engine config section to loading
@@ -20,18 +15,16 @@ use super::{
 //
 // Just specific to each engine.
 
-
 pub struct Handlebars {
     inner: hbs::Handlebars,
-    name_counter: usize
+    name_counter: usize,
 }
 
 impl Handlebars {
-
     pub fn new() -> Self {
         Handlebars {
             inner: hbs::Handlebars::new(),
-            name_counter: 0
+            name_counter: 0,
         }
     }
 
@@ -58,11 +51,14 @@ impl TemplateEngine for Handlebars {
 
     type LazyBodyTemplate = serde_impl::StandardLazyBodyTemplate;
 
-    fn load_body_template(&mut self, tmpl: Self::LazyBodyTemplate)
-        -> Result<BodyTemplate<Self>, Error>
-    {
+    fn load_body_template(
+        &mut self,
+        tmpl: Self::LazyBodyTemplate,
+    ) -> Result<BodyTemplate<Self>, Error> {
         let serde_impl::StandardLazyBodyTemplate {
-            path, embeddings, media_type
+            path,
+            embeddings,
+            media_type,
         } = tmpl;
 
         let name = self.next_body_template_name();
@@ -71,18 +67,19 @@ impl TemplateEngine for Handlebars {
         const ERR_BAD_MEDIA_TYPE_DETECTION: &str =
             "handlebars requires html/txt file extension or media type given in template spec";
 
-        let media_type =
-            if let Some(media_type) = media_type {
-                media_type
-            } else if let Some(extension) = path.extension().and_then(|osstr| osstr.to_str()) {
-                match extension {
-                    "html" => "text/html; charset=utf-8".parse().unwrap(),
-                    "txt" => "text/plain; charset=utf-8".parse().unwrap(),
-                    _ => { return Err(failure::err_msg(ERR_BAD_MEDIA_TYPE_DETECTION)); }
+        let media_type = if let Some(media_type) = media_type {
+            media_type
+        } else if let Some(extension) = path.extension().and_then(|osstr| osstr.to_str()) {
+            match extension {
+                "html" => "text/html; charset=utf-8".parse().unwrap(),
+                "txt" => "text/plain; charset=utf-8".parse().unwrap(),
+                _ => {
+                    return Err(failure::err_msg(ERR_BAD_MEDIA_TYPE_DETECTION));
                 }
-            } else {
-                return Err(failure::err_msg(ERR_BAD_MEDIA_TYPE_DETECTION));
-            };
+            }
+        } else {
+            return Err(failure::err_msg(ERR_BAD_MEDIA_TYPE_DETECTION));
+        };
 
         Ok(BodyTemplate {
             template_id: name,
@@ -91,9 +88,7 @@ impl TemplateEngine for Handlebars {
         })
     }
 
-    fn load_subject_template(&mut self, template_string: String)
-        -> Result<Self::Id, Error>
-    {
+    fn load_subject_template(&mut self, template_string: String) -> Result<Self::Id, Error> {
         let id = "subject".to_owned();
         self.inner.register_template_string(&id, template_string)?;
         Ok(id)
@@ -105,20 +100,27 @@ impl TemplateEngine for Handlebars {
 /// This could for example be implemented in a wild card impl for the template engine for
 /// any data `D` which implements `Serialize`.
 impl<D> TemplateEngineCanHandleData<D> for Handlebars
-    where D: Serialize
+where
+    D: Serialize,
 {
     fn render<'r, 'a>(
         &'r self,
         id: &'r Self::Id,
         data: &'r D,
-        additional_cids: AdditionalCIds<'r>
+        additional_cids: AdditionalCIds<'r>,
     ) -> Result<String, Error> {
-        Ok(self.inner.render(id, &SerHelper { data, cids: additional_cids })?)
+        Ok(self.inner.render(
+            id,
+            &SerHelper {
+                data,
+                cids: additional_cids,
+            },
+        )?)
     }
 }
 
 #[derive(Serialize)]
 struct SerHelper<'r, D: 'r> {
     data: &'r D,
-    cids: AdditionalCIds<'r>
+    cids: AdditionalCIds<'r>,
 }

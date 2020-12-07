@@ -11,62 +11,60 @@ macro_rules! sep_for {
     }}
 }
 
-
 macro_rules! deref0 {
-    (+mut $name:ident => $tp:ty) => (
-        deref0!{-mut $name => $tp }
+    (+mut $name:ident => $tp:ty) => {
+        deref0! {-mut $name => $tp }
         impl ::std::ops::DerefMut for $name {
-            fn deref_mut( &mut self ) -> &mut Self::Target {
+            fn deref_mut(&mut self) -> &mut Self::Target {
                 &mut self.0
             }
         }
-    );
-    (-mut $name:ident => $tp:ty) => (
+    };
+    (-mut $name:ident => $tp:ty) => {
         impl ::std::ops::Deref for $name {
             type Target = $tp;
-            fn deref( &self ) -> &Self::Target {
+            fn deref(&self) -> &Self::Target {
                 &self.0
             }
         }
-    );
+    };
 }
-
 
 #[cfg(test)]
 macro_rules! assert_ok {
-    ($val:expr) => ({
+    ($val:expr) => {{
         match $val {
-            Ok( res ) => res,
-            Err( err ) => panic!( "expected Ok(..) got Err({:?})", err)
+            Ok(res) => res,
+            Err(err) => panic!("expected Ok(..) got Err({:?})", err),
         }
-    });
-    ($val:expr, $ctx:expr) => ({
+    }};
+    ($val:expr, $ctx:expr) => {{
         match $val {
-            Ok( res ) => res,
-            Err( err ) => panic!( "expected Ok(..) got Err({:?}) [ctx: {:?}]", err, $ctx)
+            Ok(res) => res,
+            Err(err) => panic!("expected Ok(..) got Err({:?}) [ctx: {:?}]", err, $ctx),
         }
-    });
+    }};
 }
 
 #[cfg(test)]
 macro_rules! assert_err {
-    ($val:expr) => ({
+    ($val:expr) => {{
         match $val {
-            Ok( val ) => panic!( "expected Err(..) got Ok({:?})", val),
-            Err( err ) => err,
+            Ok(val) => panic!("expected Err(..) got Ok({:?})", val),
+            Err(err) => err,
         }
-    });
-    ($val:expr, $ctx:expr) => ({
+    }};
+    ($val:expr, $ctx:expr) => {{
         match $val {
-            Ok( val ) => panic!( "expected Err(..) got Ok({:?}) [ctx: {:?}]", val, $ctx),
-            Err( err ) => err,
+            Ok(val) => panic!("expected Err(..) got Ok({:?}) [ctx: {:?}]", val, $ctx),
+            Err(err) => err,
         }
-    });
+    }};
 }
 
 #[cfg(test)]
 macro_rules! test {
-    ($name:ident $code:block) => (
+    ($name:ident $code:block) => {
         #[test]
         fn $name() {
             fn inner() -> Result<(), ::failure::Error> {
@@ -76,5 +74,5 @@ macro_rules! test {
             }
             inner().unwrap();
         }
-    );
+    };
 }

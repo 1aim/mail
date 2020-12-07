@@ -1,23 +1,23 @@
+use soft_ascii_string::SoftAsciiChar;
 use std::iter::IntoIterator;
 use vec1::Vec1;
-use soft_ascii_string::SoftAsciiChar;
 
-use internals::error::EncodingError;
+use error::ComponentCreationError;
 use internals::encoder::{EncodableInHeader, EncodingWriter};
-use ::{ HeaderTryFrom, HeaderTryInto};
-use ::error::ComponentCreationError;
+use internals::error::EncodingError;
+use {HeaderTryFrom, HeaderTryInto};
 
 use super::Mailbox;
 
 #[derive(Debug, Hash, Eq, PartialEq, Clone)]
-pub struct OptMailboxList( pub Vec<Mailbox> );
+pub struct OptMailboxList(pub Vec<Mailbox>);
 
 #[derive(Debug, Hash, Eq, PartialEq, Clone)]
-pub struct MailboxList( pub Vec1<Mailbox> );
+pub struct MailboxList(pub Vec1<Mailbox>);
 
 impl MailboxList {
-    pub fn from_single( m: Mailbox ) -> Self {
-        MailboxList( Vec1::new( m ) )
+    pub fn from_single(m: Mailbox) -> Self {
+        MailboxList(Vec1::new(m))
     }
 }
 
@@ -30,12 +30,9 @@ impl IntoIterator for MailboxList {
     }
 }
 
-
-
-impl EncodableInHeader for  OptMailboxList {
-
+impl EncodableInHeader for OptMailboxList {
     fn encode(&self, handle: &mut EncodingWriter) -> Result<(), EncodingError> {
-       encode_list( self.0.iter(), handle )
+        encode_list(self.0.iter(), handle)
     }
 
     fn boxed_clone(&self) -> Box<EncodableInHeader> {
@@ -61,27 +58,30 @@ impl EncodableInHeader for  OptMailboxList {
 //TODO-RUST-RFC: allow conflicting wildcard implementations if priority is specified
 // if done then we can implement it for IntoIterator instead of Vec and slice
 impl<T> HeaderTryFrom<Vec<T>> for MailboxList
-    where T: HeaderTryInto<Mailbox>
+where
+    T: HeaderTryInto<Mailbox>,
 {
     fn try_from(vec: Vec<T>) -> Result<Self, ComponentCreationError> {
-        try_from_into_iter( vec )
+        try_from_into_iter(vec)
     }
 }
 
-fn try_from_into_iter<IT>( mboxes: IT ) -> Result<MailboxList, ComponentCreationError>
-    where IT: IntoIterator, IT::Item: HeaderTryInto<Mailbox>
+fn try_from_into_iter<IT>(mboxes: IT) -> Result<MailboxList, ComponentCreationError>
+where
+    IT: IntoIterator,
+    IT::Item: HeaderTryInto<Mailbox>,
 {
     let mut iter = mboxes.into_iter();
-    let mut vec = if let Some( first) = iter.next() {
-        Vec1::new( first.try_into()? )
+    let mut vec = if let Some(first) = iter.next() {
+        Vec1::new(first.try_into()?)
     } else {
         //TODO chain vec1 Size0Error
         return Err(ComponentCreationError::new("MailboxList"));
     };
     for mbox in iter {
-        vec.push( mbox.try_into()? );
+        vec.push(mbox.try_into()?);
     }
-    Ok( MailboxList( vec ) )
+    Ok(MailboxList(vec))
 }
 
 macro_rules! impl_header_try_from_array {
@@ -188,21 +188,21 @@ impl_header_try_from_tuple! {
 }
 
 impl<T> HeaderTryFrom<Vec<T>> for OptMailboxList
-    where T: HeaderTryInto<Mailbox>
+where
+    T: HeaderTryInto<Mailbox>,
 {
     fn try_from(vec: Vec<T>) -> Result<Self, ComponentCreationError> {
         let mut out = Vec::new();
         for ele in vec.into_iter() {
-            out.push( ele.try_into()? );
+            out.push(ele.try_into()?);
         }
-        Ok( OptMailboxList( out ) )
+        Ok(OptMailboxList(out))
     }
 }
 
-impl EncodableInHeader for  MailboxList {
-
+impl EncodableInHeader for MailboxList {
     fn encode(&self, handle: &mut EncodingWriter) -> Result<(), EncodingError> {
-        encode_list( self.0.iter(), handle )
+        encode_list(self.0.iter(), handle)
     }
 
     fn boxed_clone(&self) -> Box<EncodableInHeader> {
@@ -211,26 +211,26 @@ impl EncodableInHeader for  MailboxList {
 }
 
 fn encode_list<'a, I>(list_iter: I, handle: &mut EncodingWriter) -> Result<(), EncodingError>
-    where I: Iterator<Item=&'a Mailbox>
+where
+    I: Iterator<Item = &'a Mailbox>,
 {
-    sep_for!{ mailbox in list_iter;
+    sep_for! { mailbox in list_iter;
         sep {
             handle.write_char( SoftAsciiChar::from_unchecked(',') )?;
             handle.write_fws();
         };
         mailbox.encode( handle )?;
     }
-    Ok( () )
+    Ok(())
 }
 
-deref0!{ +mut OptMailboxList => Vec<Mailbox> }
-deref0!{ +mut MailboxList => Vec1<Mailbox> }
+deref0! { +mut OptMailboxList => Vec<Mailbox> }
+deref0! { +mut MailboxList => Vec1<Mailbox> }
 
 #[cfg(test)]
 mod test {
-    use ::header_components::{ Mailbox, Email, Phrase };
     use super::*;
-
+    use header_components::{Email, Mailbox, Phrase};
 
     ec_test! { empty_list, {
         OptMailboxList( Vec::new() )

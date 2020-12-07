@@ -13,16 +13,18 @@ pub trait HeaderTryInto<T>: Sized {
     fn try_into(self) -> Result<T, ComponentCreationError>;
 }
 
-impl<F, T> HeaderTryInto<T> for F where T: HeaderTryFrom<F> {
+impl<F, T> HeaderTryInto<T> for F
+where
+    T: HeaderTryFrom<F>,
+{
     fn try_into(self) -> Result<T, ComponentCreationError> {
         T::try_from(self)
     }
 }
 
-
 impl<T> HeaderTryFrom<T> for T {
     fn try_from(val: T) -> Result<Self, ComponentCreationError> {
-        Ok( val )
+        Ok(val)
     }
 }
 

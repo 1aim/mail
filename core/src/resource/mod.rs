@@ -1,9 +1,9 @@
 // a module level circ. dep. but fine as only
 // used for more ergonomic helper constructors
-use ::context::Context;
+use context::Context;
 
-#[cfg(feature="serde")]
-use serde::{Serialize, Deserialize};
+#[cfg(feature = "serde")]
+use serde::{Deserialize, Serialize};
 
 // We can provide a resource through two ways
 // 1. providing a Source (iri + media_type_override + name override)
@@ -116,15 +116,13 @@ Source->|    |                     |
 */
 use headers::header_components::ContentId;
 
-mod source;
 mod data;
 mod loading;
+mod source;
 
-pub use self::source::*;
 pub use self::data::*;
 pub use self::loading::*;
-
-
+pub use self::source::*;
 
 /// A enum specifying a "resource" for a mail.
 ///
@@ -147,7 +145,7 @@ pub use self::loading::*;
 /// of this library normally comes in contact with the third variant is by
 /// turning a encodable mail back into normal mail.
 #[derive(Debug, Clone)]
-#[cfg_attr(feature="serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum Resource {
     /// Provide a source which specify what data to use.
     ///
@@ -169,12 +167,10 @@ pub enum Resource {
     ///
     /// This can not be created by a consumer of the library and will be
     /// created when turning a mail into a transfer encoded mail.
-    EncData(EncData)
+    EncData(EncData),
 }
 
-
 impl Resource {
-
     /// Creates a new text `Resource` with `text/plain; charset=utf-8` media type.
     ///
     /// The `Context` is used to generate a `ContentId`.
@@ -187,7 +183,7 @@ impl Resource {
         match self {
             &Resource::Source(..) => None,
             &Resource::Data(ref data) => Some(data.content_id()),
-            &Resource::EncData(ref enc_data) => Some(enc_data.content_id())
+            &Resource::EncData(ref enc_data) => Some(enc_data.content_id()),
         }
     }
 }

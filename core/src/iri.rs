@@ -1,14 +1,12 @@
-use std::{
-    str::FromStr
-};
+use std::str::FromStr;
 
-#[cfg(feature="serde")]
-use std::fmt;
-#[cfg(feature="serde")]
+#[cfg(feature = "serde")]
 use serde::{
+    de::{self, Deserialize, Deserializer, Visitor},
     ser::{Serialize, Serializer},
-    de::{self, Deserialize, Deserializer, Visitor}
 };
+#[cfg(feature = "serde")]
+use std::fmt;
 
 //TODO consider adding a str_context
 #[derive(Copy, Clone, Debug, Fail)]
@@ -35,11 +33,10 @@ pub struct InvalidIRIScheme;
 #[derive(Debug, Clone, PartialEq, Eq, Ord, PartialOrd, Hash)]
 pub struct IRI {
     iri: String,
-    scheme_end_idx: usize
+    scheme_end_idx: usize,
 }
 
 impl IRI {
-
     /// Create a new IRI from a scheme part and a tail part.
     ///
     /// This will convert the scheme part into lower case before
@@ -56,7 +53,7 @@ impl IRI {
         buffer.push_str(tail);
         Ok(IRI {
             iri: buffer,
-            scheme_end_idx: scheme_len
+            scheme_end_idx: scheme_len,
         })
     }
 
@@ -68,10 +65,13 @@ impl IRI {
     ///    (or `"+"`,`"-"`,`"."`).
     /// 3. converts the scheme part to lower case
     pub fn new<I>(iri: I) -> Result<Self, InvalidIRIScheme>
-        where I: Into<String>
+    where
+        I: Into<String>,
     {
         let mut buffer = iri.into();
-        let split_pos = buffer.bytes().position(|b| b == b':')
+        let split_pos = buffer
+            .bytes()
+            .position(|b| b == b':')
             //TODO error type
             .ok_or_else(|| InvalidIRIScheme)?;
         {
@@ -85,16 +85,19 @@ impl IRI {
 
         Ok(IRI {
             iri: buffer,
-            scheme_end_idx: split_pos
+            scheme_end_idx: split_pos,
         })
     }
 
     fn validate_scheme(scheme: &str) -> Result<(), InvalidIRIScheme> {
         let mut iter = scheme.bytes();
-        let valid = iter.next()
-            .map(|bch| bch.is_ascii_alphabetic()).unwrap_or(false)
-            && iter.all(|bch|
-                bch.is_ascii_alphanumeric() || bch == b'+' || bch == b'-' || bch == b'.');
+        let valid = iter
+            .next()
+            .map(|bch| bch.is_ascii_alphabetic())
+            .unwrap_or(false)
+            && iter.all(|bch| {
+                bch.is_ascii_alphanumeric() || bch == b'+' || bch == b'-' || bch == b'.'
+            });
 
         if !valid {
             return Err(InvalidIRIScheme);
@@ -104,8 +107,7 @@ impl IRI {
 
     /// Creates a new IRI with the same schema but a different tail.
     pub fn with_tail(&self, new_tail: &str) -> Self {
-        IRI::from_parts(self.scheme(), new_tail)
-            .unwrap()
+        IRI::from_parts(self.scheme(), new_tail).unwrap()
     }
 
     /// The scheme part of the uri excluding the `:` seperator.
@@ -133,7 +135,7 @@ impl IRI {
     /// assert_eq!(uri.scheme(), "file");
     /// ```
     pub fn tail(&self) -> &str {
-        &self.iri[self.scheme_end_idx+1..]
+        &self.iri[self.scheme_end_idx + 1..]
     }
 
     /// returns the underlying string representation
@@ -161,20 +163,21 @@ impl Into<String> for IRI {
     }
 }
 
-#[cfg(feature="serde")]
+#[cfg(feature = "serde")]
 impl Serialize for IRI {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-        where S: Serializer
+    where
+        S: Serializer,
     {
         serializer.serialize_str(self.as_str())
     }
 }
 
-#[cfg(feature="serde")]
+#[cfg(feature = "serde")]
 impl<'de> Deserialize<'de> for IRI {
-
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-        where D: Deserializer<'de>
+    where
+        D: Deserializer<'de>,
     {
         struct IRIVisitor;
         impl<'de> Visitor<'de> for IRIVisitor {
@@ -188,8 +191,7 @@ impl<'de> Deserialize<'de> for IRI {
             where
                 E: de::Error,
             {
-                let iri = s.parse()
-                    .map_err(|err| E::custom(err))?;
+                let iri = s.parse().map_err(|err| E::custom(err))?;
 
                 Ok(iri)
             }
@@ -233,7 +235,6 @@ mod test {
         assert!(IRI::new("c1+-.:is valid").is_ok());
     }
 
-
     #[test]
     fn scheme_is_always_lower_case() {
         let iri = IRI::new("FoO:bAr").unwrap();
@@ -254,23 +255,17 @@ mod test {
         assert_eq!(iri.as_str(), "foo:bar/bazz");
     }
 
-    #[cfg(feature="serde")]
+    #[cfg(feature = "serde")]
     #[test]
     fn serde_works_for_str_iri() {
-        use serde_test::{Token, assert_tokens, assert_de_tokens};
+        use serde_test::{assert_de_tokens, assert_tokens, Token};
 
         let iri: IRI = "path:./my/joke.txt".parse().unwrap();
 
-        assert_tokens(&iri, &[
-            Token::Str("path:./my/joke.txt")
-        ]);
+        assert_tokens(&iri, &[Token::Str("path:./my/joke.txt")]);
 
-        assert_de_tokens(&iri, &[
-            Token::String("path:./my/joke.txt"),
-        ]);
+        assert_de_tokens(&iri, &[Token::String("path:./my/joke.txt")]);
 
-        assert_de_tokens(&iri, &[
-            Token::BorrowedStr("path:./my/joke.txt"),
-        ]);
+        assert_de_tokens(&iri, &[Token::BorrowedStr("path:./my/joke.txt")]);
     }
 }

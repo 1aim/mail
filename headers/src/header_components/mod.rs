@@ -16,13 +16,13 @@ mod date_time;
 pub use self::date_time::DateTime;
 
 mod email;
-pub use self::email::{ Email, Domain, LocalPart };
+pub use self::email::{Domain, Email, LocalPart};
 
 mod mailbox;
 pub use self::mailbox::{Mailbox, NoDisplayName};
 
 mod mailbox_list;
-pub use self::mailbox_list::{MailboxList, OptMailboxList };
+pub use self::mailbox_list::{MailboxList, OptMailboxList};
 
 mod transfer_encoding;
 pub use self::transfer_encoding::TransferEncoding;
@@ -31,13 +31,13 @@ mod unstructured;
 pub use self::unstructured::Unstructured;
 
 mod message_id;
-pub use self::message_id::{ MessageId, MessageIdList };
+pub use self::message_id::{MessageId, MessageIdList};
 
 pub type ContentId = MessageId;
 pub type ContentIdList = MessageIdList;
 
 mod cfws;
-pub use self::cfws::{ CFWS, FWS };
+pub use self::cfws::{CFWS, FWS};
 
 mod media_type;
 pub use self::media_type::*;

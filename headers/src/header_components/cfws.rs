@@ -1,5 +1,5 @@
-use internals::error::EncodingError;
 use internals::encoder::{EncodableInHeader, EncodingWriter};
+use internals::error::EncodingError;
 
 //FEATURE_TODO(fws_controll): allow controlling the amount of WS and if a CRLF should be used in FWS
 //  this is also usefull for parsing and keeping information about FWS structure
@@ -29,18 +29,17 @@ pub struct FWS;
 #[derive(Debug, Clone, Hash, Eq, PartialEq)]
 pub enum CFWS {
     //WithComment( Vec1<(Option<FWS>, Comment)>, Option<FWS> ),
-    SingleFws( FWS )
+    SingleFws(FWS),
 }
-
 
 impl EncodableInHeader for CFWS {
     fn encode(&self, handle: &mut EncodingWriter) -> Result<(), EncodingError> {
         match *self {
-            CFWS::SingleFws(ref _fws ) => {
+            CFWS::SingleFws(ref _fws) => {
                 handle.write_fws();
             }
         }
-        Ok( () )
+        Ok(())
     }
 
     fn boxed_clone(&self) -> Box<EncodableInHeader> {
@@ -52,7 +51,7 @@ impl EncodableInHeader for CFWS {
 mod test {
     use super::*;
 
-    ec_test!{ simple_encode,
+    ec_test! { simple_encode,
         {
             CFWS::SingleFws( FWS )
         } => utf8 => [
@@ -60,5 +59,4 @@ mod test {
             Text " "
         ]
     }
-
 }

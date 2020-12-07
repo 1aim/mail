@@ -17,23 +17,15 @@
 // in the later part of the file for better readability.       ||
 //-------------------------------------------------------------//
 
-use media_type::{MULTIPART, ALTERNATIVE, RELATED, MIXED};
+use media_type::{ALTERNATIVE, MIXED, MULTIPART, RELATED};
 use vec1::Vec1;
 
 use headers::{
-    HeaderKind,
-    headers,
-    header_components::{
-        Disposition,
-        DispositionKind,
-        MediaType
-    }
+    header_components::{Disposition, DispositionKind, MediaType},
+    headers, HeaderKind,
 };
 
-use crate::{
-    mail::Mail,
-    resource::Resource
-};
+use crate::{mail::Mail, resource::Resource};
 
 /// Parts used to create a mail body (in a multipart mail).
 ///
@@ -45,7 +37,6 @@ use crate::{
 /// by it's content id.
 #[derive(Debug)]
 pub struct BodyPart {
-
     /// A body created by a template.
     pub resource: Resource,
 
@@ -68,8 +59,7 @@ pub struct BodyPart {
     /// Attachments of a `BodyPart` instance will be combined with
     /// the attachments of other instances and the ones in the
     /// `MailParts` instance.
-    pub attachments: Vec<Resource>
-
+    pub attachments: Vec<Resource>,
 }
 
 /// Parts which can be used to compose a multipart mail.
@@ -116,17 +106,14 @@ pub struct MailParts {
     pub inline_embeddings: Vec<Resource>,
 
     /// A number of embeddings which should be treated as attachments
-    pub attachments: Vec<Resource>
+    pub attachments: Vec<Resource>,
 }
 
 //-------------------------------------------------------\\
 //  implementations for creating mails are from here on  ||
 //-------------------------------------------------------//
 
-
 impl MailParts {
-
-
     /// Create a `Mail` instance based on this `MailParts` instance.
     ///
     ///
@@ -151,57 +138,52 @@ impl MailParts {
     /// Each sub-body created for a `BodyPart` will be wrapped
     /// inside a `multipart/related` if it has body specific
     /// embeddings (with content disposition inline).
-    pub fn compose(self)
-        -> Mail
-    {
+    pub fn compose(self) -> Mail {
         let MailParts {
             alternative_bodies,
             inline_embeddings,
-            attachments
+            attachments,
         } = self;
 
-        let mut attachments = attachments.into_iter()
+        let mut attachments = attachments
+            .into_iter()
             .map(|atta| atta.create_mail_with_disposition(DispositionKind::Attachment))
             .collect::<Vec<_>>();
 
-        let mut alternatives = alternative_bodies.into_iter()
+        let mut alternatives = alternative_bodies
+            .into_iter()
             .map(|body| body.create_mail(&mut attachments))
             .collect::<Vec<_>>();
 
         //UNWRAP_SAFE: bodies is Vec1, i.e. we have at last one
         let mail = alternatives.pop().unwrap();
-        let mail =
-            if alternatives.is_empty() {
-                mail
-            } else {
-                mail.wrap_with_alternatives(alternatives)
-            };
+        let mail = if alternatives.is_empty() {
+            mail
+        } else {
+            mail.wrap_with_alternatives(alternatives)
+        };
 
-        let mail =
-            if inline_embeddings.is_empty() {
-                mail
-            } else {
-                let related = inline_embeddings.into_iter()
-                    .map(|embedding| {
-                        embedding.create_mail_with_disposition(DispositionKind::Inline)
-                    })
-                    .collect::<Vec<_>>();
-                mail.wrap_with_related(related)
-            };
+        let mail = if inline_embeddings.is_empty() {
+            mail
+        } else {
+            let related = inline_embeddings
+                .into_iter()
+                .map(|embedding| embedding.create_mail_with_disposition(DispositionKind::Inline))
+                .collect::<Vec<_>>();
+            mail.wrap_with_related(related)
+        };
 
-        let mail =
-            if attachments.is_empty() {
-                mail
-            } else {
-                mail.wrap_with_mixed(attachments)
-            };
+        let mail = if attachments.is_empty() {
+            mail
+        } else {
+            mail.wrap_with_mixed(attachments)
+        };
 
         mail
     }
 }
 
 impl BodyPart {
-
     /// Creates a `Mail` instance from this `BodyPart` instance.
     ///
     /// All embeddings in `BodyPart.embeddings` which have a
@@ -215,14 +197,11 @@ impl BodyPart {
     /// have a `Inline` disposition that body will be
     /// wrapped into a `multipart/related` body containing
     /// them.
-    pub fn create_mail(
-        self,
-        attachments_out: &mut Vec<Mail>,
-    ) -> Mail {
+    pub fn create_mail(self, attachments_out: &mut Vec<Mail>) -> Mail {
         let BodyPart {
             resource,
             inline_embeddings,
-            attachments
+            attachments,
         } = self;
 
         let body = resource.create_mail();
@@ -235,10 +214,9 @@ impl BodyPart {
         if inline_embeddings.is_empty() {
             body
         } else {
-            let related = inline_embeddings.into_iter()
-                .map(|embedding| {
-                    embedding.create_mail_with_disposition(DispositionKind::Inline)
-                })
+            let related = inline_embeddings
+                .into_iter()
+                .map(|embedding| embedding.create_mail_with_disposition(DispositionKind::Inline))
                 .collect::<Vec<_>>();
             body.wrap_with_related(related)
         }
@@ -246,7 +224,6 @@ impl BodyPart {
 }
 
 impl Resource {
-
     /// Create a `Mail` instance representing this `Resource`.
     ///
     /// This is not a complete mail, i.e. it will not contain
@@ -268,15 +245,12 @@ impl Resource {
 }
 
 impl Mail {
-
     /// Create a `multipart/mixed` `Mail` instance containing this mail as
     /// first body and one additional body for each attachment.
     ///
     /// Normally this is used with embeddings having a attachment
     /// disposition creating a mail with attachments.
-    pub fn wrap_with_mixed(self, other_bodies: Vec<Mail>)
-        -> Mail
-    {
+    pub fn wrap_with_mixed(self, other_bodies: Vec<Mail>) -> Mail {
         let mut bodies = other_bodies;
         bodies.push(self);
         new_multipart(&MIXED, bodies)
@@ -291,9 +265,7 @@ impl Mail {
     /// specified by `multipart/alternative`.
     /// This also means that _this_ body will be the last body as it is
     /// meant to be the _main_ body.
-    pub fn wrap_with_alternatives(self, alternates: Vec<Mail>)
-        -> Mail
-    {
+    pub fn wrap_with_alternatives(self, alternates: Vec<Mail>) -> Mail {
         let mut bodies = alternates;
         //TODO[opt] accept iter and prepend instead of insert in vec
         bodies.insert(0, self);
@@ -302,14 +274,11 @@ impl Mail {
 
     /// Creates a `multipart/related` `Mail` instance containing this
     /// mail first and then all related bodies.
-    pub fn wrap_with_related(self, related: Vec<Mail>)
-        -> Mail
-    {
+    pub fn wrap_with_related(self, related: Vec<Mail>) -> Mail {
         let mut bodies = related;
         bodies.insert(0, self);
         new_multipart(&RELATED, bodies)
     }
-
 }
 
 /// Creates a `multipart/<sub_type>` mail with given bodies.
@@ -318,10 +287,7 @@ impl Mail {
 ///
 /// If `sub_type` can not be used to create a multipart content
 /// type this will panic.
-fn new_multipart(sub_type: &'static str, bodies: Vec<Mail>)
-    -> Mail
-{
-    let content_type = MediaType::new(MULTIPART, sub_type)
-        .unwrap();
+fn new_multipart(sub_type: &'static str, bodies: Vec<Mail>) -> Mail {
+    let content_type = MediaType::new(MULTIPART, sub_type).unwrap();
     Mail::new_multipart_mail(content_type, bodies)
 }

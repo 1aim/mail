@@ -1,13 +1,10 @@
 //! Module containing all custom errors.
-use std::{io as std_io};
+use std::io as std_io;
 
-use new_tokio_smtp::error::{
-    ConnectingFailed,
-    LogicError, GeneralError
-};
+use new_tokio_smtp::error::{ConnectingFailed, GeneralError, LogicError};
 
-use mail::error::MailError;
 use headers::error::HeaderValidationError;
+use mail::error::MailError;
 
 /// Error used when sending a mail fails.
 ///
@@ -16,7 +13,6 @@ use headers::error::HeaderValidationError;
 /// it's done "on the fly" when sending a mail.
 #[derive(Debug, Fail)]
 pub enum MailSendError {
-
     /// Something is wrong with the mail instance (e.g. it can't be encoded).
     ///
     /// This can happen for a number of reasons including:
@@ -56,7 +52,7 @@ pub enum MailSendError {
     /// was successful, which normally includes sending Ehlo and Auth
     /// commands.
     #[fail(display = "{}", _0)]
-    Io(std_io::Error)
+    Io(std_io::Error),
 }
 
 impl From<MailError> for MailSendError {
@@ -89,21 +85,18 @@ impl From<GeneralError> for MailSendError {
         match err {
             Connecting(err) => Self::from(err),
             Cmd(err) => Self::from(err),
-            Io(err) => Self::from(err)
+            Io(err) => Self::from(err),
         }
     }
 }
 
-
 #[derive(Debug, Fail)]
 pub enum OtherValidationError {
-
     #[fail(display = "no To header was present")]
-    NoTo
+    NoTo,
 }
 
 impl From<OtherValidationError> for HeaderValidationError {
-
     fn from(ove: OtherValidationError) -> Self {
         HeaderValidationError::Custom(ove.into())
     }

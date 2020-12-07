@@ -1,21 +1,16 @@
 //! This modules add some helpers to load all resources in some data type.
 use std::{
-    borrow::{ToOwned, Borrow},
+    borrow::{Borrow, ToOwned},
     collections::HashMap,
-    mem
+    mem,
 };
 
 use futures::{
-    Future, Poll, Async,
-    try_ready,
-    future::{self, JoinAll}
+    future::{self, JoinAll},
+    try_ready, Async, Future, Poll,
 };
 
-use crate::{
-    Context, MaybeEncData, Resource,
-    utils::SendBoxFuture,
-    error::ResourceLoadingError
-};
+use crate::{error::ResourceLoadingError, utils::SendBoxFuture, Context, MaybeEncData, Resource};
 
 pub trait ContainedResourcesAccess {
     type Key: ToOwned + ?Sized;
@@ -40,17 +35,13 @@ pub trait ContainedResourcesAccess {
     fn access_resource_mut<R>(
         &mut self,
         key: &Self::Key,
-        modify: impl FnOnce(Option<&mut Resource>) -> R
+        modify: impl FnOnce(Option<&mut Resource>) -> R,
     ) -> R;
 
     /// Return a ref for a resource base on given key.
-    fn access_resource<R>(
-        &self,
-        key: &Self::Key,
-        modify: impl FnOnce(Option<&Resource>) -> R
-    ) -> R;
+    fn access_resource<R>(&self, key: &Self::Key, modify: impl FnOnce(Option<&Resource>) -> R)
+        -> R;
 }
-
 
 impl ContainedResourcesAccess for Vec<Resource> {
     type Key = usize;
@@ -64,7 +55,7 @@ impl ContainedResourcesAccess for Vec<Resource> {
     fn access_resource_mut<R>(
         &mut self,
         key: &Self::Key,
-        modify: impl FnOnce(Option<&mut Resource>) -> R
+        modify: impl FnOnce(Option<&mut Resource>) -> R,
     ) -> R {
         modify(self.get_mut(*key))
     }
@@ -73,7 +64,7 @@ impl ContainedResourcesAccess for Vec<Resource> {
     fn access_resource<R>(
         &self,
         key: &Self::Key,
-        modify: impl FnOnce(Option<&Resource>) -> R
+        modify: impl FnOnce(Option<&Resource>) -> R,
     ) -> R {
         modify(self.get(*key))
     }
@@ -91,7 +82,7 @@ impl ContainedResourcesAccess for HashMap<String, Resource> {
     fn access_resource_mut<R>(
         &mut self,
         key: &Self::Key,
-        modify: impl FnOnce(Option<&mut Resource>) -> R
+        modify: impl FnOnce(Option<&mut Resource>) -> R,
     ) -> R {
         modify(self.get_mut(key))
     }
@@ -100,7 +91,7 @@ impl ContainedResourcesAccess for HashMap<String, Resource> {
     fn access_resource<R>(
         &self,
         key: &Self::Key,
-        modify: impl FnOnce(Option<&Resource>) -> R
+        modify: impl FnOnce(Option<&Resource>) -> R,
     ) -> R {
         modify(self.get(key))
     }
@@ -108,33 +99,37 @@ impl ContainedResourcesAccess for HashMap<String, Resource> {
 
 //TODO[feat] impl. where applicable in std (Box, BTreeMap, other HashMap, etc.)
 
-
 impl Resource {
-
-    pub fn load_container<CO>(container: CO, ctx: &impl Context)
-        -> ResourceContainerLoadingFuture<CO>
-        where CO: ContainedResourcesAccess
+    pub fn load_container<CO>(
+        container: CO,
+        ctx: &impl Context,
+    ) -> ResourceContainerLoadingFuture<CO>
+    where
+        CO: ContainedResourcesAccess,
     {
         ResourceContainerLoadingFuture::start_loading(container, ctx)
     }
 }
 
 pub struct ResourceContainerLoadingFuture<C>
-    where C: ContainedResourcesAccess
+where
+    C: ContainedResourcesAccess,
 {
-    inner: Option<InnerFuture<C>>
+    inner: Option<InnerFuture<C>>,
 }
 
 struct InnerFuture<C>
-    where C: ContainedResourcesAccess
+where
+    C: ContainedResourcesAccess,
 {
     container: C,
     keys: Vec<<C::Key as ToOwned>::Owned>,
-    futs: JoinAll<Vec<SendBoxFuture<MaybeEncData, ResourceLoadingError>>>
+    futs: JoinAll<Vec<SendBoxFuture<MaybeEncData, ResourceLoadingError>>>,
 }
 
 impl<CO> ResourceContainerLoadingFuture<CO>
-    where CO: ContainedResourcesAccess
+where
+    CO: ContainedResourcesAccess,
 {
     pub fn start_loading(container: CO, ctx: &impl Context) -> Self {
         let mut keys = Vec::new();
@@ -154,14 +149,15 @@ impl<CO> ResourceContainerLoadingFuture<CO>
             inner: Some(InnerFuture {
                 container,
                 keys,
-                futs
+                futs,
             }),
         }
     }
 }
 
 impl<C> Future for ResourceContainerLoadingFuture<C>
-    where C: ContainedResourcesAccess
+where
+    C: ContainedResourcesAccess,
 {
     type Item = C;
     type Error = ResourceLoadingError;
@@ -176,7 +172,11 @@ impl<C> Future for ResourceContainerLoadingFuture<C>
         };
 
         //UNWRAP_SAFE: can only be reached if it was some
-        let InnerFuture { mut container, keys, futs:_ } = self.inner.take().unwrap();
+        let InnerFuture {
+            mut container,
+            keys,
+            futs: _,
+        } = self.inner.take().unwrap();
 
         for (key, new_resource) in keys.into_iter().zip(loaded.into_iter()) {
             container.access_resource_mut(key.borrow(), |resource_ref| {

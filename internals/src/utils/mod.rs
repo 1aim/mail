@@ -5,13 +5,12 @@
 //! be placed in.
 use std::any::TypeId;
 use std::cell::RefCell;
-use std::mem;
 use std::fmt::{self, Debug};
-
+use std::mem;
 
 /// Helper for implementing debug for an iterable think where the think on itself is irrelevant.
 pub struct DebugIterableOpaque<I> {
-    one_use_inner: RefCell<I>
+    one_use_inner: RefCell<I>,
 }
 
 impl<I> DebugIterableOpaque<I> {
@@ -21,14 +20,15 @@ impl<I> DebugIterableOpaque<I> {
     }
 }
 impl<I> Debug for DebugIterableOpaque<I>
-    where I: Iterator, I::Item: Debug
+where
+    I: Iterator,
+    I::Item: Debug,
 {
     fn fmt(&self, fter: &mut fmt::Formatter) -> fmt::Result {
         let mut borrow = self.one_use_inner.borrow_mut();
         fter.debug_list().entries(&mut *borrow).finish()
     }
 }
-
 
 //FIXME[rust/fat pointer cast]: make it ?Sized once it's supported by rust
 ///
@@ -47,29 +47,28 @@ impl<I> Debug for DebugIterableOpaque<I>
 ///
 ///
 #[inline(always)]
-pub fn uneraser_ref<GOT: 'static, EXP: 'static>(inp: &GOT ) -> Option<&EXP>  {
+pub fn uneraser_ref<GOT: 'static, EXP: 'static>(inp: &GOT) -> Option<&EXP> {
     if TypeId::of::<GOT>() == TypeId::of::<EXP>() {
         //SAFE: the GOT type is exact the same as the EXP type,
         // the compiler just does not know this due to type erasure wrt.
         // generic types
         let res: &EXP = unsafe { mem::transmute::<&GOT, &EXP>(inp) };
-        Some( res )
+        Some(res)
     } else {
         None
     }
 }
 
-
 //FIXME[rust/fat pointer cast]: make it ?Sized once it's supported by rust
 #[doc(hidden)]
 #[inline(always)]
-pub fn uneraser_mut<GOT: 'static, EXP: 'static>(inp: &mut GOT ) -> Option<&mut EXP> {
+pub fn uneraser_mut<GOT: 'static, EXP: 'static>(inp: &mut GOT) -> Option<&mut EXP> {
     if TypeId::of::<GOT>() == TypeId::of::<EXP>() {
         //SAFE: the GOT type is exact the same as the EXP type,
         // the compiler just does not know this due to type erasure wrt.
         // generic types
         let res: &mut EXP = unsafe { mem::transmute::<&mut GOT, &mut EXP>(inp) };
-        Some( res )
+        Some(res)
     } else {
         None
     }
@@ -100,8 +99,6 @@ pub fn uneraser_mut<GOT: 'static, EXP: 'static>(inp: &mut GOT ) -> Option<&mut E
 //    out
 //}
 
-
-
 /// returns true if this a not first byte from a multi byte utf-8
 ///
 /// This will return false:
@@ -118,8 +115,11 @@ pub fn vec_insert_bytes(target: &mut Vec<u8>, idx: usize, source: &[u8]) {
     use std::ptr::copy;
 
     if idx > target.len() {
-        panic!("index out of bounds: the len is {} but the index is {}",
-            target.len(), idx);
+        panic!(
+            "index out of bounds: the len is {} but the index is {}",
+            target.len(),
+            idx
+        );
     }
 
     let old_len = target.len();
@@ -144,9 +144,11 @@ pub fn vec_insert_bytes(target: &mut Vec<u8>, idx: usize, source: &[u8]) {
         //         - idx + insertion_len + old_len - idx <= old_len + insertion_len
         //         - idx - idx <= 0
         //         - 0 <= 0  [Q.E.D]
-        copy(/*src*/insertion_point,
-             /*dest*/insertion_point.offset(insertion_len as isize),
-             /*count*/moved_data_len);
+        copy(
+            /*src*/ insertion_point,
+            /*dest*/ insertion_point.offset(insertion_len as isize),
+            /*count*/ moved_data_len,
+        );
 
         // SAFE: insertion_point + insertion_len needs to be <= target.capacity()
         //   which is guaranteed as we reserve insertion len and insertion_point is

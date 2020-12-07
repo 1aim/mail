@@ -1,5 +1,5 @@
-use std::fmt;
 use soft_ascii_string::SoftAsciiStr;
+use std::fmt;
 
 use internals::grammar::is_ftext;
 
@@ -10,7 +10,7 @@ use internals::grammar::is_ftext;
 ///
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
 pub struct HeaderName {
-    name: &'static SoftAsciiStr
+    name: &'static SoftAsciiStr,
 }
 
 impl HeaderName {
@@ -22,23 +22,26 @@ impl HeaderName {
     /// This frees us from doing either case insensitive comparison/hash wrt. hash map
     /// lookups, or converting all names to upper/lower case.
     ///
-    pub fn new( name: &'static SoftAsciiStr ) -> Result<Self, InvalidHeaderName> {
-        HeaderName::validate_name( name )?;
-        Ok( HeaderName { name } )
+    pub fn new(name: &'static SoftAsciiStr) -> Result<Self, InvalidHeaderName> {
+        HeaderName::validate_name(name)?;
+        Ok(HeaderName { name })
     }
 
-    pub fn from_ascii_unchecked<B: ?Sized>( name: &'static B ) -> HeaderName
-        where B: AsRef<str>
+    pub fn from_ascii_unchecked<B: ?Sized>(name: &'static B) -> HeaderName
+    where
+        B: AsRef<str>,
     {
-        HeaderName { name: SoftAsciiStr::from_unchecked( name.as_ref() ) }
+        HeaderName {
+            name: SoftAsciiStr::from_unchecked(name.as_ref()),
+        }
     }
 
     #[inline(always)]
-    pub fn as_ascii_str( &self ) -> &'static SoftAsciiStr {
+    pub fn as_ascii_str(&self) -> &'static SoftAsciiStr {
         self.name
     }
     #[inline(always)]
-    pub fn as_str( &self ) -> &'static str {
+    pub fn as_str(&self) -> &'static str {
         self.name.as_str()
     }
 }
@@ -62,7 +65,6 @@ impl PartialEq<SoftAsciiStr> for HeaderName {
 }
 
 impl HeaderName {
-
     /// validates if the header name is valid
     ///
     /// by only allowing names in "snake case" no case
@@ -71,49 +73,56 @@ impl HeaderName {
     fn validate_name(name: &SoftAsciiStr) -> Result<(), InvalidHeaderName> {
         let mut begin_of_word = true;
         if name.len() < 1 {
-            return Err(InvalidHeaderName { invalid_name: name.to_owned().into() });
+            return Err(InvalidHeaderName {
+                invalid_name: name.to_owned().into(),
+            });
         }
 
         for ch in name.as_str().chars() {
-            if !is_ftext( ch ) {
-                return Err(InvalidHeaderName { invalid_name: name.to_owned().into() });
+            if !is_ftext(ch) {
+                return Err(InvalidHeaderName {
+                    invalid_name: name.to_owned().into(),
+                });
             }
             match ch {
                 'a'...'z' => {
                     if begin_of_word {
-                        return Err(InvalidHeaderName { invalid_name: name.to_owned().into() });
+                        return Err(InvalidHeaderName {
+                            invalid_name: name.to_owned().into(),
+                        });
                     }
-                },
+                }
                 'A'...'Z' => {
                     if begin_of_word {
                         begin_of_word = false;
                     } else {
-                        return Err(InvalidHeaderName { invalid_name: name.to_owned().into() });
+                        return Err(InvalidHeaderName {
+                            invalid_name: name.to_owned().into(),
+                        });
                     }
-                },
+                }
                 '0'...'9' => {
                     begin_of_word = false;
-                },
+                }
                 ch => {
                     if ch < '!' || ch > '~' || ch == ':' {
-                        return Err(InvalidHeaderName { invalid_name: name.to_owned().into() });
+                        return Err(InvalidHeaderName {
+                            invalid_name: name.to_owned().into(),
+                        });
                     }
                     begin_of_word = true;
                 }
-
             }
-
         }
-        Ok( () )
+        Ok(())
     }
 }
 
 #[derive(Clone, Debug, Fail)]
 #[fail(display = "given name is not a valid header name: {:?}", invalid_name)]
 pub struct InvalidHeaderName {
-    invalid_name: String
+    invalid_name: String,
 }
-
 
 /// a utility trait allowing us to use type hint structs
 /// in `HeaderMap::{contains, get_untyped}`
@@ -131,7 +140,6 @@ impl HasHeaderName for HeaderName {
 mod test {
     use super::*;
 
-
     #[test]
     fn valide_header_names() {
         let valid_cases = &[
@@ -146,11 +154,12 @@ mod test {
             "-33-",
             "---",
             "<3+Who-Cares&44",
-            "(3*4=12)^[{~}]"
+            "(3*4=12)^[{~}]",
         ];
         for case in valid_cases.iter() {
-            assert_ok!(
-                HeaderName::validate_name( SoftAsciiStr::from_str( case ).unwrap() ) );
+            assert_ok!(HeaderName::validate_name(
+                SoftAsciiStr::from_str(case).unwrap()
+            ));
         }
     }
 
@@ -171,12 +180,13 @@ mod test {
             "Message Id",
             " Leading-Ws",
             "Message\tId",
-            "Null\0Msg"
+            "Null\0Msg",
         ];
         for case in invalid_cases.iter() {
-            assert_err!( HeaderName::validate_name( SoftAsciiStr::from_str( case ).unwrap() ), case );
+            assert_err!(
+                HeaderName::validate_name(SoftAsciiStr::from_str(case).unwrap()),
+                case
+            );
         }
     }
 }
-
-

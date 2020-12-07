@@ -24,11 +24,10 @@ pub enum MailType {
     /// an non us-ascii local/user part (the part before the `@`).
     /// They also strongly simplify non ascii utf-8 in all other
     /// places like e.g. the `Subject` header.
-    Internationalized
+    Internationalized,
 }
 
 impl MailType {
-
     /// Returns true if the self is equal to `Internationalized`
     #[inline]
     pub fn is_internationalized(&self) -> bool {
@@ -36,12 +35,12 @@ impl MailType {
     }
 
     /// Returns true if self is either `Internationalized` or `Mime8BitEnabled`
-    pub fn supports_8bit_bodies( &self ) -> bool {
+    pub fn supports_8bit_bodies(&self) -> bool {
         use self::MailType::*;
         match *self {
             Ascii => false,
             Mime8BitEnabled => true,
-            Internationalized => true
+            Internationalized => true,
         }
     }
 }

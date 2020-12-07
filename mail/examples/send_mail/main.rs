@@ -6,30 +6,25 @@ compile_error!("example `send_mail` requires feature `smtp`");
 
 #[macro_use]
 extern crate mail;
-extern crate rpassword;
 extern crate futures;
-extern crate tokio;
+extern crate rpassword;
 extern crate soft_ascii_string;
+extern crate tokio;
 
 use std::io::{self, Write};
 
-use futures::{Stream, future};
+use futures::{future, Stream};
 use soft_ascii_string::SoftAsciiString;
 
 use mail::{
-    Mail,
-    HeaderTryFrom,
-    smtp::{
-        send_batch as send_mail_batch,
-        MailRequest,
-        ConnectionConfig,
-        ConnectionBuilder,
-        auth::{Plain as AuthPlain}
-    },
-    error::MailError,
     default_impl::simple_context,
+    error::MailError,
     header_components::Domain,
-    Context
+    smtp::{
+        auth::Plain as AuthPlain, send_batch as send_mail_batch, ConnectionBuilder,
+        ConnectionConfig, MailRequest,
+    },
+    Context, HeaderTryFrom, Mail,
 };
 
 mod cli;
@@ -53,7 +48,7 @@ fn main() {
             .for_each(|res| {
                 match res {
                     Ok(_) => println!("[mail send]"),
-                    Err(err) => println!("[sending mail failed] {:?}", err)
+                    Err(err) => println!("[sending mail failed] {:?}", err),
                 }
                 Ok(())
             })
@@ -67,20 +62,28 @@ fn create_connection_config(msa_info: cli::MsaInfo) -> ConnectionConfig<AuthPlai
 
     ConnectionBuilder::new(domain)
         .expect("could not resolve domain/host name of MSA")
-        .auth(AuthPlain::from_username(auth.username, auth.password)
-            .expect("used \\0 in username or password"))
+        .auth(
+            AuthPlain::from_username(auth.username, auth.password)
+                .expect("used \\0 in username or password"),
+        )
         .build()
 }
 
-fn create_mail_requests(mails: Vec<cli::SimpleMail>, ctx: &impl Context)
-    -> Result<Vec<MailRequest>, MailError>
-{
+fn create_mail_requests(
+    mails: Vec<cli::SimpleMail>,
+    ctx: &impl Context,
+) -> Result<Vec<MailRequest>, MailError> {
     use mail::headers::*;
 
     let requests = mails
         .into_iter()
         .map(|simple_mail| {
-            let cli::SimpleMail { from, to, subject, text_body } = simple_mail;
+            let cli::SimpleMail {
+                from,
+                to,
+                subject,
+                text_body,
+            } = simple_mail;
             let mut mail = Mail::plain_text(text_body, ctx);
             mail.insert_headers(headers! {
                 _From: [from],
@@ -90,12 +93,10 @@ fn create_mail_requests(mails: Vec<cli::SimpleMail>, ctx: &impl Context)
 
             Ok(MailRequest::from(mail))
         })
-        .collect::<Result<Vec<_>,_>>();
+        .collect::<Result<Vec<_>, _>>();
 
     requests
 }
-
-
 
 fn read_data() -> Result<(cli::MsaInfo, Vec<cli::SimpleMail>), io::Error> {
     cli::with_dialog(|mut dialog| {
@@ -114,4 +115,3 @@ fn read_data() -> Result<(cli::MsaInfo, Vec<cli::SimpleMail>), io::Error> {
         Ok((msa_info, mails))
     })
 }
-

@@ -1,13 +1,12 @@
+use std::borrow::ToOwned;
 use std::ops::Deref;
 use std::sync::Arc;
-use std::borrow::ToOwned;
 
 use owning_ref::OwningRef;
-use soft_ascii_string::{SoftAsciiString, SoftAsciiStr};
+use soft_ascii_string::{SoftAsciiStr, SoftAsciiString};
 
-#[cfg(feature="serde")]
-use serde::{Serialize, Deserialize, Serializer, Deserializer, de::Error as __Error};
-
+#[cfg(feature = "serde")]
+use serde::{de::Error as __Error, Deserialize, Deserializer, Serialize, Serializer};
 
 /// InnerAscii is string data container which can contain either a
 /// owned `SoftAsciiString` or a `SoftAsciiStr` reference into a shared
@@ -16,11 +15,10 @@ use serde::{Serialize, Deserialize, Serializer, Deserializer, de::Error as __Err
 pub enum InnerAscii {
     Owned(SoftAsciiString),
     //by using String+SoftAsciiStr we can eliminate unessesary copies
-    Shared(OwningRef<Arc<String>, SoftAsciiStr>)
+    Shared(OwningRef<Arc<String>, SoftAsciiStr>),
 }
 
 impl InnerAscii {
-
     /// converts this container into on which uses underlying shared data
     ///
     /// if the data is already shared nothing is done.
@@ -43,7 +41,7 @@ impl InnerAscii {
                 });
                 InnerAscii::Shared(orf)
             }
-            v => v
+            v => v,
         }
     }
 }
@@ -55,11 +53,10 @@ impl InnerAscii {
 pub enum InnerUtf8 {
     Owned(String),
     //by using String+SoftAsciiStr we can eliminate unessesary copies
-    Shared(OwningRef<Arc<String>, str>)
+    Shared(OwningRef<Arc<String>, str>),
 }
 
 impl InnerUtf8 {
-
     /// converts this container into on which uses underlying shared data
     ///
     /// if the data is already shared nothing is done.
@@ -69,34 +66,32 @@ impl InnerUtf8 {
         match self {
             InnerUtf8::Owned(value) => {
                 let buffer = Arc::new(value);
-                let orf = OwningRef::new(buffer)
-                    .map(|rced| &**rced);
+                let orf = OwningRef::new(buffer).map(|rced| &**rced);
                 InnerUtf8::Shared(orf)
             }
-            v => v
+            v => v,
         }
     }
 }
 
-
 macro_rules! inner_impl {
-    ($name:ident, $owned_form:ty, $borrowed_form:ty) => (
+    ($name:ident, $owned_form:ty, $borrowed_form:ty) => {
         impl $name {
-            pub fn new<S: Into<$owned_form>>( data: S ) -> Self {
-                $name::Owned( data.into() )
+            pub fn new<S: Into<$owned_form>>(data: S) -> Self {
+                $name::Owned(data.into())
             }
         }
         impl From<$owned_form> for $name {
-            fn from( data: $owned_form ) -> Self {
-                Self::new( data )
+            fn from(data: $owned_form) -> Self {
+                Self::new(data)
             }
         }
 
         impl Into<$owned_form> for $name {
             fn into(self) -> $owned_form {
                 match self {
-                    $name::Owned( owned ) => owned,
-                    $name::Shared( shared ) => {
+                    $name::Owned(owned) => owned,
+                    $name::Shared(shared) => {
                         let as_ref: &$borrowed_form = &*shared;
                         as_ref.to_owned()
                     }
@@ -107,22 +102,23 @@ macro_rules! inner_impl {
         impl Deref for $name {
             type Target = $borrowed_form;
 
-            fn deref( &self ) -> &$borrowed_form{
+            fn deref(&self) -> &$borrowed_form {
                 match *self {
-                    $name::Owned( ref string ) => &*string,
-                    $name::Shared( ref owning_ref ) => &*owning_ref
+                    $name::Owned(ref string) => &*string,
+                    $name::Shared(ref owning_ref) => &*owning_ref,
                 }
             }
         }
 
-        #[cfg(feature="serde")]
+        #[cfg(feature = "serde")]
         impl Serialize for $name {
             fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-                where S: Serializer
+            where
+                S: Serializer,
             {
                 let borrowed: &$borrowed_form = &*self;
                 let as_ref: &str = borrowed.as_ref();
-                serializer.serialize_str( as_ref )
+                serializer.serialize_str(as_ref)
             }
         }
 
@@ -139,55 +135,53 @@ macro_rules! inner_impl {
                 self.as_str()
             }
         }
-    );
+    };
 }
 
-inner_impl!{ InnerAscii, SoftAsciiString,  SoftAsciiStr }
-inner_impl!{ InnerUtf8, String, str }
+inner_impl! { InnerAscii, SoftAsciiString,  SoftAsciiStr }
+inner_impl! { InnerUtf8, String, str }
 //inner_impl!{ InnerOtherItem, OtherString, OtherStr }
 
 impl InnerAscii {
-    pub fn as_str( &self ) -> &str {
+    pub fn as_str(&self) -> &str {
         match *self {
-            InnerAscii::Owned( ref owned ) => owned.as_str(),
-            InnerAscii::Shared( ref shared ) => shared.as_str()
+            InnerAscii::Owned(ref owned) => owned.as_str(),
+            InnerAscii::Shared(ref shared) => shared.as_str(),
         }
     }
 }
 
-#[cfg(feature="serde")]
+#[cfg(feature = "serde")]
 impl<'de> Deserialize<'de> for InnerAscii {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-        where D: Deserializer<'de>
+    where
+        D: Deserializer<'de>,
     {
-        let content = String::deserialize(deserializer)
-            .map_err(|err| D::Error::custom(err))?;
-        let content = SoftAsciiString::from_string(content)
-            .map_err(|err| D::Error::custom(err))?;
+        let content = String::deserialize(deserializer).map_err(|err| D::Error::custom(err))?;
+        let content = SoftAsciiString::from_string(content).map_err(|err| D::Error::custom(err))?;
         Ok(InnerAscii::from(content))
     }
 }
 
 impl InnerUtf8 {
-    pub fn as_str( &self ) -> &str {
+    pub fn as_str(&self) -> &str {
         match *self {
-            InnerUtf8::Owned( ref owned ) => owned.as_str(),
-            InnerUtf8::Shared( ref shared ) => &**shared
+            InnerUtf8::Owned(ref owned) => owned.as_str(),
+            InnerUtf8::Shared(ref shared) => &**shared,
         }
     }
 }
 
-#[cfg(feature="serde")]
+#[cfg(feature = "serde")]
 impl<'de> Deserialize<'de> for InnerUtf8 {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-        where D: Deserializer<'de>
+    where
+        D: Deserializer<'de>,
     {
-        let content = String::deserialize(deserializer)
-            .map_err(|err| D::Error::custom(err))?;
+        let content = String::deserialize(deserializer).map_err(|err| D::Error::custom(err))?;
         Ok(InnerUtf8::from(content))
     }
 }
-
 
 #[cfg(test)]
 mod test {
@@ -195,44 +189,35 @@ mod test {
 
     #[test]
     fn inner_ascii_item_eq() {
-        let a = InnerAscii::Owned( SoftAsciiString::from_string( "same" ).unwrap() );
+        let a = InnerAscii::Owned(SoftAsciiString::from_string("same").unwrap());
         let b = InnerAscii::Shared(
-            OwningRef::new(Arc::new("same".to_owned()))
-                .map(|v| SoftAsciiStr::from_unchecked(&**v))
+            OwningRef::new(Arc::new("same".to_owned())).map(|v| SoftAsciiStr::from_unchecked(&**v)),
         );
-        assert_eq!( a, b );
+        assert_eq!(a, b);
     }
 
     #[test]
     fn inner_ascii_item_neq() {
-        let a = InnerAscii::Owned( SoftAsciiString::from_string( "same" ).unwrap() );
+        let a = InnerAscii::Owned(SoftAsciiString::from_string("same").unwrap());
         let b = InnerAscii::Shared(
             OwningRef::new(Arc::new("not same".to_owned()))
-                .map(|v| SoftAsciiStr::from_unchecked(&**v))
+                .map(|v| SoftAsciiStr::from_unchecked(&**v)),
         );
-        assert_ne!( a, b );
+        assert_ne!(a, b);
     }
 
     #[test]
     fn inner_utf8_item_eq() {
-        let a = InnerUtf8::Owned( String::from( "same" ) );
-        let b = InnerUtf8::Shared(
-            OwningRef::new(
-                Arc::new( String::from( "same" ) ) )
-                .map(|v| &**v)
-        );
-        assert_eq!( a, b );
+        let a = InnerUtf8::Owned(String::from("same"));
+        let b = InnerUtf8::Shared(OwningRef::new(Arc::new(String::from("same"))).map(|v| &**v));
+        assert_eq!(a, b);
     }
 
     #[test]
     fn inner_utf8_item_neq() {
-        let a = InnerUtf8::Owned( String::from( "same" ) );
-        let b = InnerUtf8::Shared(
-            OwningRef::new(
-                Arc::new( String::from( "not same" ) ) )
-                .map(|v| &**v)
-        );
-        assert_ne!( a, b );
+        let a = InnerUtf8::Owned(String::from("same"));
+        let b = InnerUtf8::Shared(OwningRef::new(Arc::new(String::from("not same"))).map(|v| &**v));
+        assert_ne!(a, b);
     }
 
     #[test]
@@ -241,11 +226,8 @@ mod test {
 
         assert_eq!(
             "hy",
-            InnerAscii::Owned( SoftAsciiStr::from_unchecked("hy").to_owned() ).as_str()
+            InnerAscii::Owned(SoftAsciiStr::from_unchecked("hy").to_owned()).as_str()
         );
-        assert_eq!(
-            "hy",
-            InnerUtf8::Owned( "hy".into() ).as_str()
-        );
+        assert_eq!("hy", InnerUtf8::Owned("hy".into()).as_str());
     }
 }

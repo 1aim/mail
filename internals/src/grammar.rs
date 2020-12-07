@@ -2,7 +2,7 @@
 //!
 //! Ironically they are also needed when writing mail encoders/generators
 //! e.g. for checking if a part need special encoding.
-use ::MailType;
+use MailType;
 
 /// ftext as defined by RFC 5322
 ///
@@ -61,7 +61,6 @@ pub fn is_vchar(ch: char, mt: MailType) -> bool {
     is_ascii_vchar(ch) || (mt == MailType::Internationalized && !is_ascii(ch))
 }
 
-
 //TODO as RFCs
 /// can be quoted in a quoted string (internalized) based on RFC ... and RFC ...
 #[inline(always)]
@@ -78,11 +77,9 @@ pub fn is_any_whitespace(ch: char) -> bool {
 /// ctext as defined by RFC 5322
 pub fn is_ctext(ch: char, mt: MailType) -> bool {
     match ch {
-        '!'...'\'' |
-        '*'...'[' |
-        ']'...'~' => true,
+        '!'...'\'' | '*'...'[' | ']'...'~' => true,
         // obs-ctext
-        _ => mt == MailType::Internationalized && !is_ascii( ch )
+        _ => mt == MailType::Internationalized && !is_ascii(ch),
     }
 }
 
@@ -91,34 +88,19 @@ pub fn is_ctext(ch: char, mt: MailType) -> bool {
 /// Note that there is _another_ especial from a different RFC.
 pub fn is_special(ch: char) -> bool {
     match ch {
-        '(' | ')' |
-        '<' | '>' |
-        '[' | ']' |
-        ':' | ';' |
-        '@' | '\\'|
-        ',' | '.' |
-        '"' => true,
-        _ => false
+        '(' | ')' | '<' | '>' | '[' | ']' | ':' | ';' | '@' | '\\' | ',' | '.' | '"' => true,
+        _ => false,
     }
 }
-
 
 /// check if a char is an tspecial (based on RFC 2045)
 pub fn is_tspecial(ch: char) -> bool {
     match ch {
-        '(' | ')' |
-        '<' | '>' |
-        '@' | ',' |
-        ';' | ':' |
-        '\\'| '"' |
-        '/' | '[' |
-        ']' | '?' |
-        '=' => true,
-        _ => false
+        '(' | ')' | '<' | '>' | '@' | ',' | ';' | ':' | '\\' | '"' | '/' | '[' | ']' | '?'
+        | '=' => true,
+        _ => false,
     }
 }
-
-
 
 /// atext as defined by RFC 5322
 #[inline(always)]
@@ -128,11 +110,10 @@ pub fn is_atext(ch: char, tp: MailType) -> bool {
 
 /// dtext as defined by RFC 5322
 #[inline(always)]
-pub fn is_dtext(ch: char , mt: MailType) -> bool {
+pub fn is_dtext(ch: char, mt: MailType) -> bool {
     match ch as u32 {
-        33...90 |
-        94...126 => true,
-        _ => mt == MailType::Internationalized && !is_ascii(ch)
+        33...90 | 94...126 => true,
+        _ => mt == MailType::Internationalized && !is_ascii(ch),
     }
 }
 
@@ -166,21 +147,15 @@ pub fn is_token_char(ch: char) -> bool {
     is_ascii(ch) && !is_ctl(ch) && !is_tspecial(ch) && ch != ' '
 }
 
-
 //TODO add rfc
 /// Check if a char is especial (based on RFC ...).
 #[inline(always)]
 pub fn is_especial(ch: char) -> bool {
     match ch {
-        '(' | ')' |
-        '<' | '>' |
-        '@' | ',' |
-        ';' | ':' |
-        '"' | '/'|
-        '[' | ']' |
-        '?' | '.' |
-        '=' => true,
-        _ => false
+        '(' | ')' | '<' | '>' | '@' | ',' | ';' | ':' | '"' | '/' | '[' | ']' | '?' | '.' | '=' => {
+            true
+        }
+        _ => false,
     }
 }
 
@@ -225,10 +200,10 @@ pub fn is_token(s: &str) -> bool {
 // (but it is used by `1. codec`, `2. components` )
 /// Grammar parts for encoded words (based on RFC 2047).
 pub mod encoded_word {
+    use super::{is_ascii_vchar, is_especial};
+    use error::{EncodingError, EncodingErrorKind};
     use nom;
-    use ::MailType;
-    use ::error::{EncodingError, EncodingErrorKind};
-    use super::{  is_especial, is_ascii_vchar };
+    use MailType;
 
     /// maximal length of an encoded word
     pub const MAX_ECW_LEN: usize = 75;
@@ -251,13 +226,12 @@ pub mod encoded_word {
     pub enum EncodedWordContext {
         Phrase,
         Text,
-        Comment
+        Comment,
     }
 
     impl EncodedWordContext {
-
         /// Returns a (context dependent) validator to check if a char can be represented without encoding.
-        fn char_validator( &self ) -> fn(char) -> bool {
+        fn char_validator(&self) -> fn(char) -> bool {
             use self::EncodedWordContext::*;
             match *self {
                 Phrase => valid_char_in_ec_in_phrase,
@@ -266,7 +240,6 @@ pub mod encoded_word {
             }
         }
     }
-
 
     /// Returns true if the given word is a encoded word.
     ///
@@ -283,36 +256,35 @@ pub mod encoded_word {
     pub fn try_parse_encoded_word_parts(
         word: &str,
         ctx: EncodedWordContext,
-        mail_type: MailType
-    ) -> Result<(&str, &str, &str), EncodingError>
-    {
+        mail_type: MailType,
+    ) -> Result<(&str, &str, &str), EncodingError> {
         let char_validator = ctx.char_validator();
         // Note we could get a possible speed up by making rustc generate
         // a different function for each Context, inlining ALL char tests
         let res = do_parse!(
             word,
-            char!( '=' ) >>
-            char!( '?' ) >>
-            charset: take_while!( is_ew_token_char ) >>
-            char!( '?' ) >>
-            encoding: take_while!( is_ew_token_char ) >>
-            char!( '?' ) >>
-            text: take_while!( char_validator ) >>
-            char!( '?' ) >>
-            char!( '=' ) >>
-            eof!() >>
-            (charset, encoding, text)
+            char!('=')
+                >> char!('?')
+                >> charset: take_while!(is_ew_token_char)
+                >> char!('?')
+                >> encoding: take_while!(is_ew_token_char)
+                >> char!('?')
+                >> text: take_while!(char_validator)
+                >> char!('?')
+                >> char!('=')
+                >> eof!()
+                >> (charset, encoding, text)
         );
 
         match res {
-            nom::IResult::Done( rest, result ) => {
+            nom::IResult::Done(rest, result) => {
                 assert_eq!(rest.len(), 0, "[BUG] used nom::eof!() but rest.len() > 0");
-                Ok( result )
-            },
-            nom::IResult::Incomplete( .. ) => {
+                Ok(result)
+            }
+            nom::IResult::Incomplete(..) => {
                 return Err((EncodingErrorKind::Malformed, mail_type).into());
             }
-            nom::IResult::Error( .. ) => {
+            nom::IResult::Error(..) => {
                 return Err((EncodingErrorKind::Malformed, mail_type).into());
             }
         }
@@ -331,14 +303,8 @@ pub mod encoded_word {
     /// True if the char is valid in an encode word appearing in a phrase.
     fn valid_char_in_ec_in_phrase(ch: char) -> bool {
         match ch {
-            '0'...'9' |
-            'a'...'z' |
-            'A'...'Z' |
-            '!' | '*' |
-            '+' | '-' |
-            '/' | '=' |
-            '_' => true,
-            _ => false
+            '0'...'9' | 'a'...'z' | 'A'...'Z' | '!' | '*' | '+' | '-' | '/' | '=' | '_' => true,
+            _ => false,
         }
     }
 
@@ -349,14 +315,16 @@ pub mod encoded_word {
     fn is_ew_token_char(ch: char) -> bool {
         is_ascii_vchar(ch) && !is_especial(ch)
     }
-
 }
 
 //TODO shouldn't we use `bind/quoted_string`?
 /// True if the given string is a quoted string.
 pub fn is_quoted_string(qstr: &str, tp: MailType) -> bool {
     let mut iter = qstr.chars();
-    if let Some('"') = iter.next() {} else { return false }
+    if let Some('"') = iter.next() {
+    } else {
+        return false;
+    }
     let mut next = iter.next();
     while let Some(ch) = next {
         match ch {
@@ -368,7 +336,7 @@ pub fn is_quoted_string(qstr: &str, tp: MailType) -> bool {
                 } else {
                     return false;
                 }
-            },
+            }
             '"' => {
                 if iter.next().is_none() {
                     return true;
@@ -378,7 +346,7 @@ pub fn is_quoted_string(qstr: &str, tp: MailType) -> bool {
             }
             ch => {
                 if !is_qtext(ch, tp) {
-                    return false
+                    return false;
                 }
             }
         }
@@ -388,7 +356,6 @@ pub fn is_quoted_string(qstr: &str, tp: MailType) -> bool {
     // The only true return if we have a '"' followed by iter.next().is_none()
     return false;
 }
-
 
 #[cfg(test)]
 mod test {
@@ -402,7 +369,7 @@ mod test {
                 panic!("{:?} should not be a VCHAR", bad_char);
             }
         }
-        for good_char in b'!'..(b'~'+1) {
+        for good_char in b'!'..(b'~' + 1) {
             if !is_ascii_vchar(good_char as char) {
                 panic!("{:?} should be a VCHAR", good_char as char);
             }
@@ -420,4 +387,3 @@ mod test {
         assert_eq!(false, is_token(""));
     }
 }
-

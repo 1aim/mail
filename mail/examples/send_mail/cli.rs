@@ -1,28 +1,22 @@
-use std::io::{
-    self,
-    StdinLock, StdoutLock,
-    BufReader, BufRead,
-    Write
-};
+use std::io::{self, BufRead, BufReader, StdinLock, StdoutLock, Write};
 use std::str::FromStr;
 
 use rpassword::read_password_with_reader;
 
-
 use mail::{
-    Mailbox, Email, HeaderTryFrom,
+    header_components::{Phrase, Unstructured},
     smtp::misc::Domain,
-    header_components::{Phrase, Unstructured}
+    Email, HeaderTryFrom, Mailbox,
 };
-
 
 pub struct ClDialog<'a> {
     stdin: BufReader<StdinLock<'a>>,
-    stdout: StdoutLock<'a>
+    stdout: StdoutLock<'a>,
 }
 
 pub fn with_dialog<FN, R>(func: FN) -> R
-    where FN: for<'a> FnOnce(ClDialog<'a>) -> R
+where
+    FN: for<'a> FnOnce(ClDialog<'a>) -> R,
 {
     let stdin = io::stdin();
     let stdout = io::stdout();
@@ -31,9 +25,11 @@ pub fn with_dialog<FN, R>(func: FN) -> R
 }
 
 impl<'a> ClDialog<'a> {
-
     pub fn new(stdin: StdinLock<'a>, stdout: StdoutLock<'a>) -> Self {
-        ClDialog { stdin: BufReader::new(stdin), stdout }
+        ClDialog {
+            stdin: BufReader::new(stdin),
+            stdout,
+        }
     }
 
     pub fn stdout(&mut self) -> &mut StdoutLock<'a> {
@@ -84,14 +80,13 @@ impl<'a> ClDialog<'a> {
         self.prompt("- Email Address")?;
         let email = self.read_email()?;
         self.prompt("- Display Name")?;
-        let display_name =  self.read_opt_phrase()?;
+        let display_name = self.read_opt_phrase()?;
         Ok(Mailbox::from((display_name, email)))
     }
 
     pub fn read_password(&mut self) -> Result<String, io::Error> {
         read_password_with_reader(Some(&mut self.stdin))
     }
-
 
     pub fn read_mail_text_body(&mut self) -> Result<String, io::Error> {
         let mut buf = String::new();
@@ -156,9 +151,7 @@ impl<'a> ClDialog<'a> {
         writeln!(self.stdout, "To/Recipient")?;
         let to = self.read_mailbox()?;
         self.prompt("Subject")?;
-        let subject = Unstructured
-            ::try_from(self.read_line()?.trim())
-            .unwrap();
+        let subject = Unstructured::try_from(self.read_line()?.trim()).unwrap();
 
         writeln!(self.stdout, "Utf-8 text body [end with Ctrl-D]:")?;
         self.stdout.flush()?;
@@ -167,7 +160,7 @@ impl<'a> ClDialog<'a> {
             from,
             to,
             subject,
-            text_body
+            text_body,
         })
     }
 
@@ -175,17 +168,15 @@ impl<'a> ClDialog<'a> {
         loop {
             let line = self.read_line()?;
             let line = line.trim();
-            let valid =
-                match line {
-                    "y" => true,
-                    "n" => false,
-                    _ => continue
-                };
+            let valid = match line {
+                "y" => true,
+                "n" => false,
+                _ => continue,
+            };
             return Ok(valid);
         }
     }
 }
-
 
 /// POD
 #[derive(Debug)]
@@ -198,7 +189,7 @@ pub struct AuthData {
 #[derive(Debug)]
 pub struct MsaInfo {
     pub domain: Domain,
-    pub auth: AuthData
+    pub auth: AuthData,
 }
 
 /// POD
@@ -209,4 +200,3 @@ pub struct SimpleMail {
     pub subject: Unstructured,
     pub text_body: String,
 }
-

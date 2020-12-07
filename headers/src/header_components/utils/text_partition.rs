@@ -1,7 +1,6 @@
 use internals::grammar::{is_vchar, is_ws};
 use internals::MailType;
 
-
 #[derive(Copy, Clone, Debug, Fail, PartialEq, Eq, Hash)]
 #[fail(display = "text contained control characters")]
 pub struct PartitionError;
@@ -10,23 +9,26 @@ pub struct PartitionError;
 pub enum Partition<'a> {
     //from -> to the start of the next block
     SPACE(&'a str),
-    VCHAR(&'a str)
+    VCHAR(&'a str),
 }
 
 #[derive(Clone, Copy, PartialEq)]
-enum Type { SPACE, VCHAR }
+enum Type {
+    SPACE,
+    VCHAR,
+}
 
-pub fn partition<'a>( text: &'a str ) -> Result<Vec<Partition<'a>>, PartitionError> {
+pub fn partition<'a>(text: &'a str) -> Result<Vec<Partition<'a>>, PartitionError> {
     use self::Type::*;
 
     if text.len() == 0 {
-        return Ok( Vec::new() );
+        return Ok(Vec::new());
     }
 
     // unwrap is ok, as we return earlier if len == 0
-    let start_with_vchar = is_vchar( text.chars().next().unwrap(), MailType::Internationalized);
+    let start_with_vchar = is_vchar(text.chars().next().unwrap(), MailType::Internationalized);
 
-    let mut partitions =  Vec::new();
+    let mut partitions = Vec::new();
     let mut current_type = if start_with_vchar { VCHAR } else { SPACE };
 
     let mut start_of_current = 0;
@@ -52,11 +54,10 @@ pub fn partition<'a>( text: &'a str ) -> Result<Vec<Partition<'a>>, PartitionErr
         }
     }
 
-
-    partitions.push( match current_type {
+    partitions.push(match current_type {
         SPACE => Partition::SPACE(&text[start_of_current..]),
-        VCHAR => Partition::VCHAR(&text[start_of_current..])
-    } );
+        VCHAR => Partition::VCHAR(&text[start_of_current..]),
+    });
 
-    Ok( partitions )
+    Ok(partitions)
 }

@@ -1,5 +1,4 @@
-pub use soft_ascii_string::{ SoftAsciiStr as _SoftAsciiStr };
-
+pub use soft_ascii_string::SoftAsciiStr as _SoftAsciiStr;
 
 /// Defines a new header types with given type name, filed name and component
 ///

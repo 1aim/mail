@@ -27,24 +27,16 @@ pub enum TraceToken {
     /// mime bodies or mime multipart body boundaries
     /// still get written into the string buffer
     BlankLine,
-    Body
+    Body,
 }
 
-pub fn simplify_trace_tokens<I: IntoIterator<Item=TraceToken>>(inp: I) -> Vec<TraceToken> {
-    use std::mem;
+pub fn simplify_trace_tokens<I: IntoIterator<Item = TraceToken>>(inp: I) -> Vec<TraceToken> {
     use self::TraceToken::*;
-    let iter = inp.into_iter()
-        .filter(|t| {
-            match *t {
-                NowChar |
-                NowStr |
-                NowAText |
-                NowUtf8 |
-                NowUnchecked |
-                NowCondText => false,
-                _ => true
-            }
-        });
+    use std::mem;
+    let iter = inp.into_iter().filter(|t| match *t {
+        NowChar | NowStr | NowAText | NowUtf8 | NowUnchecked | NowCondText => false,
+        _ => true,
+    });
 
     let mut out = Vec::new();
     let mut textbf = String::new();
@@ -55,7 +47,7 @@ pub fn simplify_trace_tokens<I: IntoIterator<Item=TraceToken>>(inp: I) -> Vec<Tr
             Text(str) => {
                 had_text = true;
                 textbf.push_str(&*str)
-            },
+            }
             e => {
                 if had_text {
                     let text = mem::replace(&mut textbf, String::new());
@@ -143,14 +135,12 @@ macro_rules! ec_test {
 //    )
 }
 
-
-
 #[cfg(test)]
 mod test {
-    use soft_ascii_string::SoftAsciiStr;
     use super::super::encodable::EncodeClosure;
+    use soft_ascii_string::SoftAsciiStr;
 
-    ec_test!{ repreduces_all_tokens,
+    ec_test! { repreduces_all_tokens,
         {
             EncodeClosure::new(|writer| {
                 writer.write_utf8("hy-there")?;
